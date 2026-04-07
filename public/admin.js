@@ -154,10 +154,14 @@ function renderState(state) {
         isFirstLoad = false;
     }
     
-    // Sync active match names if any (continously during setup phase)
-    if (!state.isRacing && state.countdown === null && state.bracketState && state.bracketState.active_match) {
+    // Sync active match names if any
+    if (state.bracketState && state.bracketState.active_match) {
         UI.monitors.p1NameInput.value = state.bracketState.active_match.p1 || 'Player 1';
         UI.monitors.p2NameInput.value = state.bracketState.active_match.p2 || 'Player 2';
+    } else if (!state.isRacing && state.countdown === null) {
+        // Only clear if not in an active manual race
+        UI.monitors.p1NameInput.value = 'Player 1';
+        UI.monitors.p2NameInput.value = 'Player 2';
     }
 
     if (state.bracketState) {

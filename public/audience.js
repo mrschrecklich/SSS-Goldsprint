@@ -61,29 +61,41 @@ function connect() {
 }
 
 let lastFullStateStr = null;
+let lastBracketHash = null;
 
 function renderState(state) {
-    // Quick optimization: only re-render if something changed
-    const currentStateStr = JSON.stringify(state);
-    if (currentStateStr === lastFullStateStr) return;
-    lastFullStateStr = currentStateStr;
-
-    UI.targetDist.textContent = Math.round(state.targetDist);
-
+    // 1. Separate high-frequency updates from structural updates
+    const p1 = state.p1;
+    const p2 = state.p2;
+    
+    // Always update these (fast DOM ops)
+    updatePlayer(0, p1, state.targetDist);
+    updatePlayer(1, p2, state.targetDist);
+    handleCountdown(state.countdown);
+    
     const p1Name = state.bracketState?.active_match?.p1 || 'PLAYER 1';
     const p2Name = state.bracketState?.active_match?.p2 || 'PLAYER 2';
-    
     UI.lanes[0].name.textContent = p1Name;
     UI.lanes[1].name.textContent = p2Name;
-
-    handleCountdown(state.countdown);
+    
     handleResults(state, p1Name, p2Name);
 
-    updatePlayer(0, state.p1, state.targetDist);
-    updatePlayer(1, state.p2, state.targetDist);
-
+    // 2. Only update bracket UI if the bracket state changed
+    // We create a hash of the bracket data to detect REAL changes
     if (state.bracketState) {
-        handleBracket(state.bracketState);
+        const currentBracketHash = JSON.stringify({
+            cat: state.bracketState.active_category,
+            show: state.bracketState.show_bracket,
+            activeMatch: state.bracketState.active_match?.id,
+            champ: state.bracketState.champion,
+            // Deep bracket data check
+            data: state.bracketState.categories[state.bracketState.active_category]?.bracket
+        });
+
+        if (currentBracketHash !== lastBracketHash) {
+            lastBracketHash = currentBracketHash;
+            handleBracket(state.bracketState);
+        }
     }
 }
 
@@ -268,7 +280,12 @@ function renderBracketTree(catData, bracketState) {
     });
 
     // Draw lines after layout
-    setTimeout(() => drawBracketLines(catData), 10);
+    // Use a slightly longer delay and repeat check to ensure DOM has computed sizes
+    setTimeout(() => {
+        drawBracketLines(catData);
+        // Second pass safety check
+        setTimeout(() => drawBracketLines(catData), 150);
+    }, 50);
 }
 
 function drawBracketLines(catData) {

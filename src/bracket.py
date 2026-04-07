@@ -1,6 +1,9 @@
 import random
 import uuid
+import logging
 from typing import Dict, Any, Optional, List
+
+logger = logging.getLogger(__name__)
 
 class BracketManager:
     """
@@ -18,6 +21,34 @@ class BracketManager:
         }
         self.active_match: Optional[Dict[str, Any]] = None
         self.champion: Optional[Dict[str, str]] = None
+
+    def find_next_active_match(self) -> None:
+        """
+        Automatically finds the next playable match in the active category 
+        and sets it as active_match.
+        """
+        cat_data = self.categories.get(self.active_category)
+        if not cat_data or not cat_data["bracket"]:
+            self.active_match = None
+            return
+
+        # Iterate through rounds and matches to find the first one that is "playable"
+        # Playable = Both players set, neither is BYE, and no winner yet.
+        for round_matches in cat_data["bracket"]:
+            for match in round_matches:
+                if (match["p1"] and match["p2"] and 
+                    match["p1"] != "BYE" and match["p2"] != "BYE" and 
+                    not match["winner"]):
+                    
+                    self.active_match = {
+                        "id": match["id"],
+                        "category": self.active_category,
+                        "p1": match["p1"],
+                        "p2": match["p2"]
+                    }
+                    return
+        
+        self.active_match = None
 
     def add_participant(self, category: str, name: str) -> Optional[str]:
         """
@@ -166,6 +197,7 @@ class BracketManager:
             
         self.categories[category]["bracket"] = bracket
         self._propagate_winners(category)
+        self.find_next_active_match()
 
     def swap_participants(self, category: str, match1_id: str, p1_idx: int, match2_id: str, p2_idx: int) -> None:
         """
@@ -206,6 +238,7 @@ class BracketManager:
                     m["winner"] = "BYE"
             
             self._propagate_winners(category)
+            self.find_next_active_match()
 
     def _propagate_winners(self, category: str) -> None:
         """
@@ -268,6 +301,8 @@ class BracketManager:
                     # Final match detection
                     if r_idx == len(bracket) - 1:
                         self.champion = {"name": winner_name, "category": category}
+                    
+                    self.find_next_active_match()
                     return
 
     def manual_advance(self, category: str, match_id: str, winner_name: str) -> None:
@@ -284,7 +319,9 @@ class BracketManager:
     def clear_champion(self) -> None:
         """Clears the current champion and returns to bracket view."""
         self.champion = None
+        self.active_match = None
         self.show_bracket = True
+        self.find_next_active_match()
 
     def get_state(self) -> Dict[str, Any]:
         """
