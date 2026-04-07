@@ -38,7 +38,8 @@ const UI = {
         overlay: document.getElementById('bracketOverlay'),
         title: document.getElementById('bracketCategoryTitle'),
         container: document.getElementById('audienceBracketContainer'),
-        svg: document.getElementById('bracketSvg')
+        svg: document.getElementById('bracketSvg'),
+        statsBody: document.getElementById('audienceStatsBody')
     },
     champion: {
         overlay: document.getElementById('championOverlay'),
@@ -150,8 +151,15 @@ function applyRpmEffects(ui, rpm) {
  * Bracket Rendering & Animations
  */
 function handleBracket(bracketState) {
-    if (bracketState.show_bracket || bracketState.champion) {
-        // Overlay is visible
+    // 1. Determine which overlay to show
+    const isChamp = bracketState.champion && bracketState.champion.category === bracketState.active_category;
+    
+    if (isChamp) {
+        UI.bracket.overlay.classList.add('hidden');
+        UI.champion.overlay.classList.remove('hidden');
+    } else if (bracketState.show_bracket) {
+        UI.bracket.overlay.classList.remove('hidden');
+        UI.champion.overlay.classList.add('hidden');
     } else {
         UI.bracket.overlay.classList.add('hidden');
         UI.champion.overlay.classList.add('hidden');
@@ -161,12 +169,9 @@ function handleBracket(bracketState) {
     const catData = bracketState.categories[bracketState.active_category];
     if (!catData) return;
 
-    // Handle Champion View
-    if (bracketState.champion && bracketState.champion.category === bracketState.active_category) {
-        UI.bracket.overlay.classList.add('hidden');
+    // 2. Handle Champion View Rendering
+    if (isChamp) {
         UI.champion.name.textContent = bracketState.champion.name;
-        
-        // Render Leaderboard
         UI.champion.leaderboard.innerHTML = '';
         (catData.top_times || []).forEach((entry, idx) => {
             const row = document.createElement('div');
@@ -178,14 +183,10 @@ function handleBracket(bracketState) {
             `;
             UI.champion.leaderboard.appendChild(row);
         });
-        
-        UI.champion.overlay.classList.remove('hidden');
         return;
     }
 
-    // Normal Bracket View
-    UI.champion.overlay.classList.add('hidden');
-    UI.bracket.overlay.classList.remove('hidden');
+    // 3. Normal Bracket View Rendering
     UI.bracket.title.textContent = `${catData.name} BRACKET`;
 
     // Check for advancement animations
@@ -193,6 +194,30 @@ function handleBracket(bracketState) {
         checkForAdvancement(lastBracketData, catData, bracketState);
     }
     lastBracketData = JSON.parse(JSON.stringify(catData));
+
+    // Render Live Stats Sidebar
+    if (UI.bracket.statsBody) {
+        UI.bracket.statsBody.innerHTML = '';
+        const participants = catData.participants || [];
+        const uniqueParticipants = [...new Set(participants)];
+        const bestsMap = bracketState.participants_bests || {};
+        
+        uniqueParticipants.forEach(name => {
+            const bests = bestsMap[name] || { today: null, all_time: null };
+            const row = document.createElement('div');
+            row.className = 'stats-row';
+            row.innerHTML = `
+                <div class="stats-name">${name}</div>
+                <div class="stats-times">
+                    <span class="time-label">TODAY:</span>
+                    <span class="time-value">${bests.today ? parseFloat(bests.today).toFixed(2) + 's' : '-'}</span>
+                    <span class="time-label">BEST:</span>
+                    <span class="time-value all-time">${bests.all_time ? parseFloat(bests.all_time).toFixed(2) + 's' : '-'}</span>
+                </div>
+            `;
+            UI.bracket.statsBody.appendChild(row);
+        });
+    }
 
     if (!isAnimating) {
         renderBracketTree(catData, bracketState);

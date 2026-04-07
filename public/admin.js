@@ -31,8 +31,7 @@ const UI = {
         participantList: document.getElementById('participantList'),
         randomizeBtn: document.getElementById('randomizeBtn'),
         container: document.getElementById('bracketContainer'),
-        nameSuggestions: document.getElementById('name-suggestions'),
-        statsBody: document.getElementById('bracketStatsBody')
+        nameSuggestions: document.getElementById('name-suggestions')
     }
 };
 
@@ -188,22 +187,6 @@ function renderBracketUI(bracketState) {
         chip.className = 'participant-chip';
         chip.innerHTML = `<span>${p}</span> <button onclick="removeParticipant('${p}')">&times;</button>`;
         UI.bracket.participantList.appendChild(chip);
-    });
-
-    // Render Live Stats Panel
-    UI.bracket.statsBody.innerHTML = '';
-    const uniqueParticipants = [...new Set(participants)];
-    const bestsMap = bracketState.participants_bests || {};
-    
-    uniqueParticipants.forEach(name => {
-        const bests = bestsMap[name] || { today: null, all_time: null };
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="rider-name">${name}</td>
-            <td class="time">${bests.today ? parseFloat(bests.today).toFixed(3) + 's' : '-'}</td>
-            <td class="time">${bests.all_time ? parseFloat(bests.all_time).toFixed(3) + 's' : '-'}</td>
-        `;
-        UI.bracket.statsBody.appendChild(row);
     });
 
     // Render Bracket Tree
