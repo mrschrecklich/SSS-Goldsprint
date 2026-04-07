@@ -14,6 +14,24 @@ def test_add_remove_participant():
     
     bm.remove_participant("OPEN", "Alice")
     assert "Alice" not in bm.categories["OPEN"]["participants"]
+
+def test_duplicate_participant():
+    bm = BracketManager()
+    error = bm.add_participant("OPEN", "Alice")
+    assert error is None
+    
+    # Duplicate in same category
+    error = bm.add_participant("OPEN", "Alice")
+    assert "already registered" in error.lower()
+    
+    # Duplicate in different category
+    error = bm.add_participant("WTNB", "Alice")
+    assert "already registered" in error.lower()
+    
+    # Case sensitivity (if we want to enforce it, currently it is case sensitive by default 'Alice' != 'alice')
+    # Let's check current behavior
+    error = bm.add_participant("OPEN", "alice")
+    assert error is None # 'alice' is different from 'Alice'
     
 def test_bracket_generation_even():
     bm = BracketManager()

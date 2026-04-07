@@ -69,7 +69,12 @@ function connect() {
 
     ws.onopen = () => updateUIStatus('Connected & Ready', 'ready');
     ws.onmessage = (event) => {
-        currentState = JSON.parse(event.data);
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'ERROR') {
+            alert(`⚠️ Error: ${msg.message}`);
+            return;
+        }
+        currentState = msg;
         renderState(currentState);
     };
     ws.onclose = () => {
@@ -253,8 +258,23 @@ window.drop = (e, targetMatchId, targetPIdx) => {
 
 // --- Bracket Commands ---
 UI.bracket.addParticipantBtn.addEventListener('click', () => {
-    const name = UI.bracket.newParticipantName.value;
-    if (name) {
+    const name = UI.bracket.newParticipantName.value.trim();
+    if (!name) {
+        alert("Please enter a name.");
+        return;
+    }
+    
+    // Client-side quick check
+    let exists = false;
+    for (const cat in currentState.bracketState.categories) {
+        if (currentState.bracketState.categories[cat].participants.includes(name)) {
+            alert(`⚠️ Error: '${name}' is already registered in ${cat} category.`);
+            exists = true;
+            break;
+        }
+    }
+    
+    if (!exists) {
         sendCommand('ADD_PARTICIPANT', { category: activeCategory, name });
         UI.bracket.newParticipantName.value = '';
     }
@@ -289,10 +309,18 @@ UI.resetBtn.addEventListener('click', () => {
 });
 
 UI.applyConfigBtn.addEventListener('click', () => {
+    const dist = parseFloat(UI.inputs.dist.value);
+    const circ = parseFloat(UI.inputs.circ.value);
+    const fs = parseFloat(UI.inputs.fs.value);
+
+    if (isNaN(dist) || dist <= 0) { alert("Distance must be a positive number."); return; }
+    if (isNaN(circ) || circ <= 0) { alert("Circumference must be a positive number."); return; }
+    if (isNaN(fs) || fs < 1) { alert("False start threshold must be at least 1 RPM."); return; }
+
     sendCommand('CONFIG', {
-        dist: parseFloat(UI.inputs.dist.value),
-        circ: parseFloat(UI.inputs.circ.value),
-        fsThreshold: parseFloat(UI.inputs.fs.value)
+        dist: dist,
+        circ: circ,
+        fsThreshold: fs
     });
     const originalText = UI.applyConfigBtn.textContent;
     UI.applyConfigBtn.textContent = 'CONFIG APPLIED!';

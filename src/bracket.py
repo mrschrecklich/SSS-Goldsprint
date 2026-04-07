@@ -19,17 +19,31 @@ class BracketManager:
         self.active_match: Optional[Dict[str, Any]] = None
         self.champion: Optional[Dict[str, str]] = None
 
-    def add_participant(self, category: str, name: str) -> None:
+    def add_participant(self, category: str, name: str) -> Optional[str]:
         """
         Adds a participant to a specific category.
+        Enforces uniqueness across all categories.
 
         Args:
             category (str): The category name.
             name (str): The participant's name.
+
+        Returns:
+            Optional[str]: Error message if name is duplicate, otherwise None.
         """
         name = name.strip()
-        if category in self.categories and name and name not in self.categories[category]["participants"]:
-            self.categories[category]["participants"].append(name)
+        if not name:
+            return "Name cannot be empty."
+        if category not in self.categories:
+            return f"Category {category} does not exist."
+            
+        # Check for duplicate in ANY category
+        for cat_name, cat_data in self.categories.items():
+            if name in cat_data["participants"]:
+                return f"'{name}' is already registered in {cat_name} category."
+        
+        self.categories[category]["participants"].append(name)
+        return None
             
     def remove_participant(self, category: str, name: str) -> None:
         """

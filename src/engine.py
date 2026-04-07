@@ -20,9 +20,9 @@ class GoldsprintEngine:
             circumference (float): Wheel circumference in meters.
             false_start_threshold (int): RPM threshold for false start detection.
         """
-        self.target_dist: float = target_dist
-        self.circumference: float = circumference
-        self.false_start_threshold: int = false_start_threshold
+        self.target_dist: float = max(0.1, target_dist)
+        self.circumference: float = max(0.1, circumference)
+        self.false_start_threshold: int = max(1, false_start_threshold)
         
         self.is_racing: bool = False
         self.countdown: Optional[int] = None

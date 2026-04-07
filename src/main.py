@@ -87,13 +87,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif msg_type == "RESET":
                     engine.reset()
                 elif msg_type == "CONFIG":
-                    if "dist" in cmd: engine.target_dist = float(cmd["dist"])
-                    if "circ" in cmd: engine.circumference = float(cmd["circ"])
-                    if "fsThreshold" in cmd: engine.false_start_threshold = int(cmd["fsThreshold"])
+                    if "dist" in cmd: engine.target_dist = max(0.1, float(cmd["dist"]))
+                    if "circ" in cmd: engine.circumference = max(0.1, float(cmd["circ"]))
+                    if "fsThreshold" in cmd: engine.false_start_threshold = max(1, int(cmd["fsThreshold"]))
                 
                 # --- Bracket Control ---
                 elif msg_type == "ADD_PARTICIPANT":
-                    bracket_manager.add_participant(cmd.get("category"), cmd.get("name"))
+                    error = bracket_manager.add_participant(cmd.get("category"), cmd.get("name"))
+                    if error:
+                        # Send error back to the requester only or broadcast
+                        await websocket.send_text(json.dumps({"type": "ERROR", "message": error}))
+                        return # Skip the broadcast_state below to avoid redundant updates
                 elif msg_type == "REMOVE_PARTICIPANT":
                     bracket_manager.remove_participant(cmd.get("category"), cmd.get("name"))
                 elif msg_type == "RENAME_CATEGORY":
