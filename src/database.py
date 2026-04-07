@@ -242,11 +242,12 @@ class GoldsprintDB:
             cursor = conn.cursor()
             # If a specific distance is selected, we sort by time.
             # If no distance is selected, we sort by average speed.
-            order_by = "r.race_time ASC" if distance else "(r.race_distance / r.race_time) DESC"
+            # Using NULLIF(race_time, 0) to prevent division by zero.
+            order_by = "r.race_time ASC" if distance else "(r.race_distance / NULLIF(r.race_time, 0)) DESC"
             
             query = f"""
                 SELECT p.name, r.race_time, r.race_distance, r.race_date, r.category,
-                (r.race_distance / r.race_time * 3.6) as avg_speed_kmh
+                (r.race_distance / NULLIF(r.race_time, 0) * 3.6) as avg_speed_kmh
                 FROM results r
                 JOIN participants p ON r.participant_id = p.id
                 WHERE {" AND ".join(conditions)}

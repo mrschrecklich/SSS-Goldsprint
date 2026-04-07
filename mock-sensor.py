@@ -10,7 +10,7 @@ import random
 # === EASY CONFIGURATION ===
 # General Race Parameters
 TARGET_DIST = 500      # Race distance in meters
-CIRCUMFERENCE = 8    # Wheel circumference in meters (default 700c tire)
+CIRCUMFERENCE = 2.1    # Wheel circumference in meters (default 700c tire)
 
 # Player 1 Performance (Pro Rider)
 P1_CONFIG = {

@@ -36,15 +36,15 @@ class GoldsprintEngine:
 
     def reset(self) -> None:
         """Resets the race state to idle and cancels any active countdown."""
+        self._cancel_countdown()
         self.is_racing = False
         self.countdown = None
         self.winner = None
         self.race_start_time = None
         
+        # Reset player dictionaries explicitly
         self.p1 = {"rpm": 0, "speed": 0, "dist": 0, "finishTime": None}
         self.p2 = {"rpm": 0, "speed": 0, "dist": 0, "finishTime": None}
-        
-        self._cancel_countdown()
 
     def _cancel_countdown(self) -> None:
         """Cancels any running countdown task."""
@@ -55,11 +55,15 @@ class GoldsprintEngine:
     async def start_countdown(self, broadcast_callback: Callable[[], Awaitable[None]]) -> None:
         """
         Initiates the 3-second countdown sequence.
+        Prevents multiple concurrent countdowns.
 
         Args:
             broadcast_callback (Callable): Async function called after each tick to broadcast state.
         """
-        self._cancel_countdown()
+        if self.countdown_task and not self.countdown_task.done():
+            logger.warning("Countdown already in progress. Ignoring start request.")
+            return
+
         self.reset()
         self.countdown = 3
         await broadcast_callback()
@@ -140,15 +144,19 @@ class GoldsprintEngine:
         self.p2["speed"] = p2_ms * 3.6
 
         if self.is_racing:
-            self._update_player_progress('p1', p1_ms, dt)
-            self._update_player_progress('p2', p2_ms, dt)
+            now = time.time()
+            self._update_player_progress('p1', p1_ms, dt, now)
+            self._update_player_progress('p2', p2_ms, dt, now)
 
             # Auto-stop when both players cross the finish line
             if self.p1["finishTime"] and self.p2["finishTime"]:
                 self.is_racing = False
+                if self.p1["finishTime"] == self.p2["finishTime"]:
+                    self.winner = "TIE"
+                    logger.info("Winner detected: TIE")
         return None
 
-    def _update_player_progress(self, player_key: str, speed_ms: float, dt: float) -> None:
+    def _update_player_progress(self, player_key: str, speed_ms: float, dt: float, now: float) -> None:
         """
         Updates distance and checks for finish line cross for a specific player.
 
@@ -156,6 +164,7 @@ class GoldsprintEngine:
             player_key (str): 'p1' or 'p2'.
             speed_ms (float): Speed in meters per second.
             dt (float): Delta time in seconds.
+            now (float): Current tick timestamp.
         """
         player = self.p1 if player_key == 'p1' else self.p2
         if player["finishTime"]:
@@ -165,7 +174,7 @@ class GoldsprintEngine:
         if player["dist"] >= self.target_dist:
             player["dist"] = self.target_dist
             if self.race_start_time is not None:
-                player["finishTime"] = time.time() - self.race_start_time
+                player["finishTime"] = now - self.race_start_time
             if not self.winner:
                 self.winner = 'Player 1' if player_key == 'p1' else 'Player 2'
                 logger.info(f"Winner detected: {self.winner}")

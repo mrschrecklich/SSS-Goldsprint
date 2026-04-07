@@ -38,25 +38,33 @@ class SensorClient:
                 logger.info(f"Connected to sensor at {self.host}:{self.port}")
                 last_tick_time = time.time()
                 
+                buffer = ""
                 while True:
                     data = await reader.read(1024)
                     if not data:
                         logger.warning("Sensor connection closed by remote host.")
                         break
                     
-                    lines = data.decode().split('\n')
-                    # Use current engine values as fallback
-                    rpm1, rpm2 = self.engine.p1["rpm"], self.engine.p2["rpm"]
-                    
-                    for line in lines:
+                    buffer += data.decode()
+                    while '\n' in buffer:
+                        line, buffer = buffer.split('\n', 1)
+                        line = line.strip()
+                        if not line:
+                            continue
+                            
+                        # Use current engine values as fallback
+                        rpm1, rpm2 = self.engine.p1["rpm"], self.engine.p2["rpm"]
+                        
                         if line.startswith('P1:'):
                             try:
                                 rpm1 = int(line.split(':')[1])
+                                self.engine.p1["rpm"] = rpm1
                             except (ValueError, IndexError):
                                 pass
                         elif line.startswith('P2:'):
                             try:
                                 rpm2 = int(line.split(':')[1])
+                                self.engine.p2["rpm"] = rpm2
                             except (ValueError, IndexError):
                                 pass
                     
@@ -64,8 +72,8 @@ class SensorClient:
                     dt = now - last_tick_time
                     last_tick_time = now
                     
-                    # Update engine with new RPM values
-                    error = self.engine.update_tick(rpm1, rpm2, dt)
+                    # Update engine with new RPM values (engine.update_tick handles physics)
+                    error = self.engine.update_tick(self.engine.p1["rpm"], self.engine.p2["rpm"], dt)
                     if error:
                         self.engine.abort(error)
                     

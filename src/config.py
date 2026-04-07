@@ -18,10 +18,15 @@ class GoldsprintConfig(BaseSettings):
     default_target_dist: float = Field(default=500.0, description="Default race distance in meters")
     default_circumference: float = Field(default=2.1, description="Default wheel circumference in meters")
     false_start_threshold: int = Field(default=20, description="RPM threshold for detecting false starts")
+    
+    # UI and performance
+    broadcast_throttle_ms: int = Field(default=100, description="Minimum interval between UI broadcasts in milliseconds")
 
-    class Config:
-        env_prefix = "GOLDSPRINT_"
-        case_sensitive = False
+    # Use Pydantic V2 model_config instead of class Config
+    model_config = {
+        "env_prefix": "GOLDSPRINT_",
+        "case_sensitive": False
+    }
 
 # Global configuration instance
 config = GoldsprintConfig()

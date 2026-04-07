@@ -43,3 +43,26 @@ def test_false_start():
     # P2 pedaling too fast
     error = engine.update_tick(0, 25, 1)
     assert error == "FALSE START: PLAYER 2"
+
+def test_exact_tie_resolution():
+    """
+    Tests Bug 4.3: Ensure that if both players cross the finish line in the exact same tick
+    and have the identical finish time, the engine records the winner as 'TIE'.
+    """
+    engine = GoldsprintEngine()
+    engine.target_dist = 10.0
+    engine.circumference = 2.0
+    engine.is_racing = True
+    engine.race_start_time = time.time()
+    
+    # Both pedaling at 300 RPM (10m/s).
+    # In 1 second, they both hit 10m simultaneously.
+    engine.update_tick(300, 300, 1.0)
+    
+    assert engine.p1["dist"] == 10.0
+    assert engine.p2["dist"] == 10.0
+    assert engine.p1["finishTime"] is not None
+    assert engine.p2["finishTime"] is not None
+    assert engine.p1["finishTime"] == engine.p2["finishTime"]
+    
+    assert engine.winner == "TIE", f"Expected winner to be TIE, but was {engine.winner}"

@@ -86,4 +86,104 @@ def test_manual_advance():
     assert bracket[0][0]["_actual_winner"] is True
     
     # In this 2-player case, A should be champion
-    assert bm.champion["name"] == "A"
+    assert bm.champions["OPEN"]["name"] == "A"
+
+def test_tournament_concurrency_bug():
+    """
+    Tests Bug 1: Ensure that in a multi-round bracket, completing the first heat
+    does NOT prematurely declare a champion, and the next active match is correctly
+    queued for the remaining heat in Round 1.
+    """
+    bm = BracketManager()
+    players = ["A", "B", "C", "D"]
+    for p in players:
+        bm.add_participant("OPEN", p)
+    bm.generate_bracket("OPEN")
+    
+    # Verify initial state: Round 1 has 2 matches.
+    bracket = bm.categories["OPEN"]["bracket"]
+    assert len(bracket) == 2  # 2 rounds
+    
+    first_match = bm.active_match
+    assert first_match is not None
+    assert first_match["category"] == "OPEN"
+    
+    # Simulate finishing the first heat.
+    # Player "A" wins the first match.
+    bm.advance_winner("OPEN", first_match["id"], "A", winner_time=12.5)
+    
+    # BUG ASSERTION 1: The overall champion should NOT be set yet.
+    assert bm.champions.get("OPEN") is None, "Champion was set prematurely after the first heat!"
+    
+    # BUG ASSERTION 2: The next active match should be the second heat in Round 1.
+    next_match = bm.active_match
+    assert next_match is not None, "Next active match was not queued."
+    assert next_match["id"] != first_match["id"], "Active match did not advance."
+
+def test_implicit_boolean_check_bug():
+    """
+    Tests Bug 4.4: Ensure that empty strings or '0' are treated as valid participant names 
+    by explicit None checks rather than implicit truthiness checks.
+    """
+    bm = BracketManager()
+    players = ["", "B", "C", "D"]
+    for p in players:
+        bm.add_participant("OPEN", p)
+    bm.generate_bracket("OPEN")
+    
+    bracket = bm.categories["OPEN"]["bracket"]
+    first_match = bracket[0][0]
+    
+    # Manually advance the empty string participant
+    bm.advance_winner("OPEN", first_match["id"], "")
+    
+    # The winner should be propagated to the next round
+    next_match_id = first_match["next_match_id"]
+    next_match = None
+    for m in bracket[1]:
+        if m["id"] == next_match_id:
+            next_match = m
+            break
+            
+    assert next_match is not None
+    # We should see "" propagated to p1 or p2 of the next match
+    assert next_match["p1"] == "" or next_match["p2"] == "", f"Empty string winner was not propagated! Next match state: {next_match}"
+
+def test_simultaneous_tournaments():
+    """
+    Tests Phase 1: Ensure that multiple categories can have active tournaments 
+    simultaneously, and declaring a champion in one does not affect the other.
+    """
+    bm = BracketManager()
+    
+    # 1. Setup brackets for both categories
+    bm.add_participant("OPEN", "O1")
+    bm.add_participant("OPEN", "O2")
+    bm.generate_bracket("OPEN")
+    
+    bm.add_participant("WTNB", "W1")
+    bm.add_participant("WTNB", "W2")
+    bm.generate_bracket("WTNB")
+    
+    # 2. Advance winner in OPEN to get a champion
+    open_match = bm.categories["OPEN"]["bracket"][0][0]
+    bm.advance_winner("OPEN", open_match["id"], "O1")
+    
+    # 3. Verify OPEN has a champion, but WTNB is still in bracket mode
+    state = bm.get_state()
+    assert state["champions"].get("OPEN") is not None
+    assert state["champions"]["OPEN"]["name"] == "O1"
+    
+    # WTNB should still have no champion and its bracket should be visible/playable
+    assert state["champions"].get("WTNB") is None
+    
+    # 4. Verify find_next_active_match correctly finds the match in WTNB 
+    # if OPEN is finished.
+    bm.active_category = "OPEN"
+    bm.find_next_active_match()
+    assert bm.active_match is not None
+    assert bm.active_match["category"] == "WTNB"
+    assert bm.active_match["p1"] in ["W1", "W2"]
+    assert bm.active_match["p2"] in ["W1", "W2"]
+
+

@@ -20,35 +20,45 @@ class BracketManager:
             "WTNB": {"name": "WTNB", "participants": [], "bracket": [], "top_times": []}
         }
         self.active_match: Optional[Dict[str, Any]] = None
-        self.champion: Optional[Dict[str, str]] = None
+        self.champions: Dict[str, Optional[Dict[str, Any]]] = {}
 
     def find_next_active_match(self) -> None:
         """
-        Automatically finds the next playable match in the active category 
-        and sets it as active_match.
+        Automatically finds the next playable match. 
+        Prioritizes the active category, but falls back to other categories.
         """
-        cat_data = self.categories.get(self.active_category)
-        if not cat_data or not cat_data["bracket"]:
-            self.active_match = None
+        # Try active category first
+        if self._find_match_in_category(self.active_category):
             return
 
-        # Iterate through rounds and matches to find the first one that is "playable"
-        # Playable = Both players set, neither is BYE, and no winner yet.
-        for round_matches in cat_data["bracket"]:
-            for match in round_matches:
-                if (match["p1"] and match["p2"] and 
-                    match["p1"] != "BYE" and match["p2"] != "BYE" and 
-                    not match["winner"]):
-                    
-                    self.active_match = {
-                        "id": match["id"],
-                        "category": self.active_category,
-                        "p1": match["p1"],
-                        "p2": match["p2"]
-                    }
+        # Otherwise, check all other categories
+        for cat_name in self.categories:
+            if cat_name != self.active_category:
+                if self._find_match_in_category(cat_name):
                     return
         
         self.active_match = None
+
+    def _find_match_in_category(self, category: str) -> bool:
+        """Helper to find and set the active match within a specific category."""
+        cat_data = self.categories.get(category)
+        if not cat_data or not cat_data["bracket"]:
+            return False
+
+        for round_matches in cat_data["bracket"]:
+            for match in round_matches:
+                if (match.get("p1") is not None and match.get("p2") is not None and 
+                    match["p1"] != "BYE" and match["p2"] != "BYE" and 
+                    match.get("winner") is None):
+                    
+                    self.active_match = {
+                        "id": match["id"],
+                        "category": category,
+                        "p1": match["p1"],
+                        "p2": match["p2"]
+                    }
+                    return True
+        return False
 
     def add_participant(self, category: str, name: str) -> Optional[str]:
         """
@@ -174,8 +184,8 @@ class BracketManager:
                     m1["next_match_id"] = match_id
                     m2["next_match_id"] = match_id
                     
-                    p1 = m1["winner"] if m1["winner"] else None
-                    p2 = m2["winner"] if m2["winner"] else None
+                    p1 = m1.get("winner")
+                    p2 = m2.get("winner")
                     winner = None
                     
                     if p1 == "BYE" and p2 != "BYE" and p2 is not None:
@@ -251,11 +261,10 @@ class BracketManager:
         if not bracket:
             return
         for r_idx in range(len(bracket) - 1):
-            for m in bracket[r_idx]:
+            for idx, m in enumerate(bracket[r_idx]):
                 if m["next_match_id"]:
                     next_m = next((nm for nm in bracket[r_idx+1] if nm["id"] == m["next_match_id"]), None)
                     if next_m:
-                        idx = bracket[r_idx].index(m)
                         if idx % 2 == 0:
                             next_m["p1"] = m["winner"]
                         else:
@@ -300,7 +309,7 @@ class BracketManager:
                     
                     # Final match detection
                     if r_idx == len(bracket) - 1:
-                        self.champion = {"name": winner_name, "category": category}
+                        self.champions[category] = {"name": winner_name, "category": category}
                     
                     self.find_next_active_match()
                     return
@@ -316,9 +325,16 @@ class BracketManager:
         """
         self.advance_winner(category, match_id, winner_name, winner_time=None)
 
-    def clear_champion(self) -> None:
-        """Clears the current champion and returns to bracket view."""
-        self.champion = None
+    def clear_champion(self, category: Optional[str] = None) -> None:
+        """
+        Clears the champion(s) and returns to bracket view.
+        If category is provided, clears only that category's champion.
+        """
+        if category:
+            self.champions.pop(category, None)
+        else:
+            self.champions = {}
+            
         self.active_match = None
         self.show_bracket = True
         self.find_next_active_match()
@@ -335,5 +351,5 @@ class BracketManager:
             "active_category": self.active_category,
             "categories": self.categories,
             "active_match": self.active_match,
-            "champion": self.champion
+            "champions": self.champions
         }

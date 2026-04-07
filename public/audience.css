@@ -236,13 +236,14 @@ body {
     z-index: 400;
     display: flex;
     flex-direction: column;
-    padding: 2vw;
+    padding: 1vw;
     box-sizing: border-box;
+    transition: opacity 0.5s ease-in-out;
 }
 
-#bracketCategoryTitle {
+.bracket-category-title {
     font-family: var(--font-display);
-    font-size: 8vw;
+    font-size: clamp(4vw, 8vh, 8vw);
     text-align: center;
     color: var(--win-color);
     margin: 0 0 2vh 0;
@@ -254,13 +255,64 @@ body {
     display: flex;
     flex-grow: 1;
     gap: 2vw;
-    min-height: 0; /* Allow flex shrinking */
+    min-height: 0;
+    overflow: hidden;
 }
 
 .bracket-wrapper {
     flex: 1;
     position: relative;
+    overflow: hidden; /* Never scroll */
+    background: rgba(20, 20, 20, 0.4);
+    border: 4px solid #222;
+    border-radius: 2vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.audience-bracket-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    gap: 5vw;
+    padding: 2vw;
+    position: relative; /* Essential for child SVG positioning */
+    z-index: 2;
+}
+
+.aud-bracket-round {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+}
+
+.aud-bracket-match {
+    background-color: #111;
+    border: 2px solid #333;
+    border-radius: 1vh;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    position: relative;
+    margin: 0.2vh 0; /* Tightened margin for 16 players */
+    flex-shrink: 1;
+    min-height: 0;
+}
+
+.aud-bracket-slot {
+    padding: 0.2vh 1vw; /* Tightened padding */
+    font-family: var(--font-display);
+    font-size: clamp(0.5rem, min(1.5vw, 2.5vh), 3vw);
+    text-align: center;
+    color: #fff;
+    border-bottom: 1px solid #333;
+    position: relative;
+    min-height: 0;
 }
 
 .stats-sidebar {
@@ -353,53 +405,7 @@ body {
     filter: drop-shadow(0 0 10px var(--p1-color));
 }
 
-.audience-bracket-container {
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: stretch;
-    gap: 8vw;
-    position: relative;
-    z-index: 2;
-}
 
-.aud-bracket-round {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    flex: 1;
-    max-width: 25vw;
-}
-
-.aud-bracket-match {
-    background-color: #111;
-    border: 4px solid #333;
-    border-radius: 1vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-}
-
-.aud-bracket-match.active-match {
-    border-color: #ffff00;
-    box-shadow: 0 0 20px #ffff00;
-    animation: active-pulse 1s infinite alternate;
-}
-
-.aud-bracket-slot {
-    padding: 1.5vh 1vw;
-    font-family: var(--font-display);
-    font-size: 3vw;
-    text-align: center;
-    color: #fff;
-    border-bottom: 2px solid #333;
-    position: relative;
-}
-
-.aud-bracket-slot:last-child {
-    border-bottom: none;
-}
 
 .aud-bracket-slot.winner {
     background-color: #222;
@@ -410,6 +416,31 @@ body {
 .aud-bracket-slot.loser {
     opacity: 0.2;
     color: #444;
+}
+
+/* Compact Champion Box for Multi-Bracket View */
+.aud-champion-box {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2vh;
+}
+
+.aud-champion-box .title {
+    font-family: var(--font-display);
+    font-size: 2vw;
+    color: #ff9800;
+    letter-spacing: 4px;
+}
+
+.aud-champion-box .name {
+    font-family: var(--font-display);
+    font-size: 6vw;
+    color: #fff;
+    text-shadow: 0 0 20px var(--win-color);
 }
 
 /* Floating Riding Animation Tag */

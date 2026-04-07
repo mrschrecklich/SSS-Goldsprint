@@ -32,6 +32,10 @@ const UI = {
         randomizeBtn: document.getElementById('randomizeBtn'),
         container: document.getElementById('bracketContainer'),
         nameSuggestions: document.getElementById('name-suggestions')
+    },
+    contextMenu: {
+        menu: document.getElementById('context-menu'),
+        advance: document.getElementById('menu-advance')
     }
 };
 
@@ -116,7 +120,7 @@ const sendCommand = (type, payload = {}) => {
 // --- Render Loop ---
 function renderState(state) {
     const isFinished = state.winner || (state.p1.finishTime && state.p2.finishTime);
-    const hasChampion = state.bracketState && state.bracketState.champion;
+    const hasChampion = state.bracketState && state.bracketState.champions && state.bracketState.champions[activeCategory];
     
     if (isFinished) {
         updateUIStatus(state.winner || 'Finished', 'stop');
@@ -200,6 +204,10 @@ function renderBracketUI(bracketState) {
         return;
     }
 
+    // Bug Fix 1: Define "Tournament Started" as at least one non-BYE winner exists
+    const hasActualWinner = catData.bracket.flat().some(m => m.winner && m.winner !== 'BYE');
+    const canDrag = !hasActualWinner && !currentState.isRacing && currentState.countdown === null;
+
     catData.bracket.forEach((round, rIndex) => {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
@@ -214,7 +222,10 @@ function renderBracketUI(bracketState) {
             matchDiv.innerHTML = `
                 <div style="font-size:0.8rem; color:#888;">Match ${match.id.substring(0,4)}</div>
                 <div class="bracket-slot ${match.winner === match.p1 && match.p1 ? 'winner' : ''}" 
-                     draggable="${match.p1 && match.p1 !== 'BYE'}" 
+                     draggable="${canDrag && match.p1 && match.p1 !== 'BYE'}" 
+                     onpointerdown="handlePointerDown(event, '${match.id}', 1, '${match.p1}')"
+                     onpointerup="handlePointerUp(event)"
+                     onpointerleave="handlePointerUp(event)"
                      ondragstart="dragStart(event, '${match.id}', 1, '${match.p1}')"
                      ondragover="allowDrop(event)"
                      ondrop="drop(event, '${match.id}', 1)"
@@ -223,7 +234,10 @@ function renderBracketUI(bracketState) {
                     ${match.winner === match.p1 && match.p1 ? '<span>★</span>' : ''}
                 </div>
                 <div class="bracket-slot ${match.winner === match.p2 && match.p2 ? 'winner' : ''}" 
-                     draggable="${match.p2 && match.p2 !== 'BYE'}" 
+                     draggable="${canDrag && match.p2 && match.p2 !== 'BYE'}" 
+                     onpointerdown="handlePointerDown(event, '${match.id}', 2, '${match.p2}')"
+                     onpointerup="handlePointerUp(event)"
+                     onpointerleave="handlePointerUp(event)"
                      ondragstart="dragStart(event, '${match.id}', 2, '${match.p2}')"
                      ondragover="allowDrop(event)"
                      ondrop="drop(event, '${match.id}', 2)"
@@ -244,6 +258,7 @@ function renderBracketUI(bracketState) {
 let draggedData = null;
 
 window.dragStart = (e, matchId, pIdx, name) => {
+    handlePointerUp(); // Cancel long-press timer if we start dragging
     draggedData = { matchId, pIdx, name };
     e.dataTransfer.effectAllowed = "move";
 };
@@ -267,37 +282,16 @@ window.drop = (e, targetMatchId, targetPIdx) => {
     
     let sourceRoundIdx = -1;
     let targetRoundIdx = -1;
-    let sourceMatch = null;
     
     bracket.forEach((round, rIdx) => {
         round.forEach(m => {
-            if (m.id === draggedData.matchId) { sourceRoundIdx = rIdx; sourceMatch = m; }
-            if (m.id === targetMatchId) { targetRoundIdx = rIdx; }
+            if (m.id === draggedData.matchId) sourceRoundIdx = rIdx;
+            if (m.id === targetMatchId) targetRoundIdx = rIdx;
         });
     });
 
-    // 1. ADVANCE Logic: If target match is the direct successor of source match
-    if (targetMatchId === sourceMatch.next_match_id) {
-        if (confirm(`Manually advance ${draggedData.name} to the next round?`)) {
-            sendCommand('MANUAL_ADVANCE', {
-                category: activeCategory,
-                match_id: draggedData.matchId,
-                winner: draggedData.name
-            });
-        }
-    } 
-    // 2. CHAMPION Logic: If dragging from the final match (declaring winner)
-    else if (sourceRoundIdx === bracket.length - 1 && draggedData.matchId === targetMatchId) {
-        if (confirm(`Confirm ${draggedData.name} as the final TOURNAMENT WINNER?`)) {
-            sendCommand('MANUAL_ADVANCE', {
-                category: activeCategory,
-                match_id: draggedData.matchId,
-                winner: draggedData.name
-            });
-        }
-    }
-    // 3. SWAP Logic: If dropped in the same round (e.g., seeding changes)
-    else if (sourceRoundIdx === targetRoundIdx) {
+    // Only allow swapping in the same round (seeding changes)
+    if (sourceRoundIdx === targetRoundIdx && sourceRoundIdx !== -1) {
         sendCommand('SWAP_PARTICIPANTS', {
             category: activeCategory,
             match1_id: draggedData.matchId,
@@ -309,6 +303,63 @@ window.drop = (e, targetMatchId, targetPIdx) => {
     
     draggedData = null;
 };
+
+// --- Long Press & Context Menu Logic ---
+let longPressTimer = null;
+let contextMenuTarget = null;
+let menuOpenTime = 0; // Bug Fix 2: Prevent immediate closing
+
+window.handlePointerDown = (e, matchId, pIdx, name) => {
+    if (!name || name === 'BYE' || name === 'TBD') return;
+    
+    // Clear any existing timer
+    if (longPressTimer) clearTimeout(longPressTimer);
+    
+    // Set timer for 600ms long press
+    longPressTimer = setTimeout(() => {
+        showContextMenu(e, matchId, pIdx, name);
+    }, 600);
+};
+
+window.handlePointerUp = () => {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+};
+
+function showContextMenu(e, matchId, pIdx, name) {
+    contextMenuTarget = { matchId, pIdx, name };
+    menuOpenTime = Date.now();
+    
+    const menu = UI.contextMenu.menu;
+    menu.style.display = 'flex';
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    
+    // Disable "Advance" if match already has a winner
+    const catData = currentState.bracketState.categories[activeCategory];
+    const match = catData.bracket.flat().find(m => m.id === matchId);
+    UI.contextMenu.advance.disabled = !!match.winner;
+}
+
+// Hide menu on click elsewhere
+document.addEventListener('click', (e) => {
+    // Bug Fix 2: Ignore the click that happens right after releasing the long press
+    if (Date.now() - menuOpenTime < 150) return;
+    UI.contextMenu.menu.style.display = 'none';
+});
+
+UI.contextMenu.advance.addEventListener('click', () => {
+    if (!contextMenuTarget) return;
+    if (confirm(`Manually advance ${contextMenuTarget.name} to the next round?`)) {
+        sendCommand('MANUAL_ADVANCE', {
+            category: activeCategory,
+            match_id: contextMenuTarget.matchId,
+            winner: contextMenuTarget.name
+        });
+    }
+});
 
 // --- Bracket Commands ---
 UI.bracket.addParticipantBtn.addEventListener('click', () => {
@@ -408,13 +459,15 @@ UI.ackWinnerBtn.addEventListener('click', () => {
             winner: winnerName,
             time: winnerTime
         });
+    } else if (currentState.winner === 'TIE') {
+        alert("Race ended in a TIE! Please manually advance a winner or run the race again.");
     } else {
         alert("Race ended in false start or error, cannot advance winner.");
     }
 });
 
 UI.ackChampBtn.addEventListener('click', () => {
-    sendCommand('ACK_CHAMPION');
+    sendCommand('ACK_CHAMPION', { category: activeCategory });
     switchTab('bracket');
 });
 

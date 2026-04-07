@@ -3,4 +3,6 @@ uvicorn
 websockets
 pytest
 pytest-asyncio
+pydantic
 pydantic-settings
+python-dotenv

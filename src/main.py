@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
@@ -62,9 +62,28 @@ def invalidate_bests_cache(name: Optional[str] = None):
     else:
         _best_times_cache = {}
 
-async def broadcast_state() -> None:
-    """Async helper to broadcast the merged state to all UIs."""
-    await manager.broadcast(get_full_state())
+# Throttling state for broadcasts
+_last_broadcast_time = 0
+_broadcast_lock = asyncio.Lock()
+
+async def broadcast_state(force: bool = False) -> None:
+    """
+    Async helper to broadcast the merged state to all UIs.
+    Implements rate limiting based on config.broadcast_throttle_ms.
+    """
+    global _last_broadcast_time
+    now = asyncio.get_event_loop().time()
+    throttle_sec = config.broadcast_throttle_ms / 1000.0
+    
+    # Critical state changes (Start/Stop) should bypass throttle
+    if not force and (now - _last_broadcast_time) < throttle_sec:
+        return
+        
+    async with _broadcast_lock:
+        if not force and (now - _last_broadcast_time) < throttle_sec:
+            return
+        _last_broadcast_time = now
+        await manager.broadcast(get_full_state())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -96,12 +115,12 @@ app = FastAPI(lifespan=lifespan, title="Goldsprint SSS Server")
 @app.get("/api/suggestions")
 async def get_suggestions(q: str = ""):
     """Returns participant name suggestions for autocomplete."""
-    return db.get_name_suggestions(q)
+    return await asyncio.to_thread(db.get_name_suggestions, q)
 
 @app.get("/api/participant/{name}")
 async def get_participant_stats(name: str):
     """Returns all race times for a specific participant."""
-    stats = db.get_participant_stats(name)
+    stats = await asyncio.to_thread(db.get_participant_stats, name)
     if not stats:
         return JSONResponse(status_code=404, content={"message": "Participant not found"})
     return stats
@@ -111,26 +130,26 @@ async def get_highscores(category: str = None, filter: str = "all", distance: fl
     """Returns leaderboard data based on category, time, and distance filters."""
     # Map 'All' from UI to None for DB
     db_cat = None if category == "All" else category
-    return db.get_highscores(category=db_cat, time_filter=filter, distance=distance)
+    return await asyncio.to_thread(db.get_highscores, category=db_cat, time_filter=filter, distance=distance)
 
 @app.delete("/api/participant/{name}")
 async def delete_participant(name: str):
     """Deletes a participant and all their data."""
-    db.delete_participant(name)
+    await asyncio.to_thread(db.delete_participant, name)
     invalidate_bests_cache(name)
     return {"message": f"Deleted {name}"}
 
 @app.delete("/api/participants/all")
 async def delete_all_participants():
     """Wipes the entire database history."""
-    db.clear_all_data()
+    await asyncio.to_thread(db.clear_all_data)
     invalidate_bests_cache()
     return {"message": "All data cleared"}
 
 @app.get("/api/rider_bests/{name}")
 async def get_rider_bests(name: str):
     """Returns today's and all-time best times for a rider."""
-    return db.get_rider_best_times(name)
+    return await asyncio.to_thread(db.get_rider_best_times, name)
 
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
@@ -164,13 +183,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     if "fsThreshold" in cmd: engine.false_start_threshold = max(1, int(cmd["fsThreshold"]))
                 
                 # --- Bracket Control ---
+                elif msg_type in [
+                    "ADD_PARTICIPANT", "REMOVE_PARTICIPANT", "RENAME_CATEGORY", 
+                    "GENERATE_BRACKET", "MANUAL_ADVANCE", "SWAP_PARTICIPANTS",
+                    "SET_ACTIVE_CATEGORY", "SET_ACTIVE_MATCH", "ADVANCE_WINNER"
+                ] and engine.is_racing:
+                    # Ignore bracket-mutating commands during an active race
+                    logger.warning(f"Ignored {msg_type} command during active race.")
+                    continue
+                    
                 elif msg_type == "ADD_PARTICIPANT":
                     name = cmd.get("name")
                     error = bracket_manager.add_participant(cmd.get("category"), name)
                     if error:
                         # Send error back to the requester only or broadcast
                         await websocket.send_text(json.dumps({"type": "ERROR", "message": error}))
-                        return # Skip the broadcast_state below to avoid redundant updates
+                        continue # Skip the broadcast_state below to avoid redundant updates
                     invalidate_bests_cache(name)
                 elif msg_type == "REMOVE_PARTICIPANT":
                     bracket_manager.remove_participant(cmd.get("category"), cmd.get("name"))
@@ -213,10 +241,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     match = bracket_manager.active_match
                     if match:
                         if engine.p1["finishTime"]:
-                            db.save_race_result(match["p1"], cat, engine.p1["finishTime"], distance)
+                            await asyncio.to_thread(db.save_race_result, match["p1"], cat, engine.p1["finishTime"], distance)
                             invalidate_bests_cache(match["p1"])
                         if engine.p2["finishTime"]:
-                            db.save_race_result(match["p2"], cat, engine.p2["finishTime"], distance)
+                            await asyncio.to_thread(db.save_race_result, match["p2"], cat, engine.p2["finishTime"], distance)
                             invalidate_bests_cache(match["p2"])
                     
                     bracket_manager.advance_winner(
@@ -225,13 +253,15 @@ async def websocket_endpoint(websocket: WebSocket):
                     )
                     
                     # Auto-reset race state when a winner advances
-                    if bracket_manager.active_match and bracket_manager.active_match.get("id") == mid:
-                        bracket_manager.active_match = None
-                        if not bracket_manager.champion:
-                            bracket_manager.show_bracket = True
-                        engine.reset()
+                    if not bracket_manager.champions.get(cat):
+                        bracket_manager.show_bracket = True
+                    engine.reset()
+                    
+                    # FORCE broadcast for critical state change
+                    await broadcast_state(force=True)
+                    continue # Skip the general broadcast below
                 elif msg_type == "ACK_CHAMPION":
-                    bracket_manager.clear_champion()
+                    bracket_manager.clear_champion(cmd.get("category"))
                 
                 # State changed, broadcast to everyone
                 await broadcast_state()

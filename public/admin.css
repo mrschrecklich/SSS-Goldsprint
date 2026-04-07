@@ -341,3 +341,43 @@ input:disabled + .slider {
     font-weight: bold;
     cursor: pointer;
 }
+
+/* Context Menu */
+#context-menu {
+    position: fixed;
+    z-index: 1000;
+    background-color: #222;
+    border: 1px solid #444;
+    border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    display: none;
+    flex-direction: column;
+    min-width: 150px;
+    overflow: hidden;
+}
+
+.context-menu-item {
+    padding: 12px 20px;
+    color: white;
+    cursor: pointer;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+
+.context-menu-item:hover {
+    background-color: #333;
+}
+
+.context-menu-item.danger {
+    color: #f44336;
+}
+
+.context-menu-item:disabled {
+    color: #555;
+    cursor: not-allowed;
+    background: none;
+}
