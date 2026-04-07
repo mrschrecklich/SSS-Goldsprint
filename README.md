@@ -20,12 +20,16 @@ The system is modularized for maintainability and scalability, adhering to senio
 - **`src/bracket.py`**: A robust **Tournament Bracket Manager**. Handles participant registration, category management, and automatic single-elimination bracket generation with "BYE" support and winner propagation.
 - **`src/sensor_client.py`**: A dedicated TCP client that ingests raw RPM data from sensors or mocks, providing real-time updates to the engine.
 - **`src/websocket_manager.py`**: Decouples communication from logic, managing broadcast groups for all connected Admin and Audience UIs.
+- **`src/database.py`**: Persistent storage for participants and race history using SQLite.
 - **`src/config.py`**: Centralized configuration using `pydantic-settings`, allowing overrides via environment variables (e.g., `GOLDSPRINT_PORT`).
 
 ### 2. Frontend Views (`public/`)
-- **Admin View (`admin.html`)**: Optimized for tablets and phones. Features "fat-finger" touch targets, tournament bracket controls, and live race configuration.
+- **Admin View (`admin.html`)**: Optimized for tablets and phones. Features "fat-finger" touch targets, tournament bracket controls, live race configuration, and **autocomplete suggestions for participant names**.
 - **Audience View (`audience.html`)**: A "10-foot UI" for high-contrast projection. Features dynamic CSS shaking based on real-time RPM and a high-energy start sequence.
-- **Launcher (`index.html`)**: Quick access to Admin and Audience views.
+- **Statistics View (`stats.html`)**: A detailed dashboard for historical data. It includes:
+    - **Global Leaderboard**: Filterable by category (OPEN/WTNB) and date (Today, 5 Days, This Year).
+    - **Personal Records Search**: Look up any rider to see their total races and personal best times.
+- **Launcher (`index.html`)**: Quick access to Admin, Audience, and Statistics views.
 
 ### 3. Realistic Mock Sensor (`mock-sensor.py`)
 Emulates professional riders with realistic phases:

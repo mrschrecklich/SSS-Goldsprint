@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - SSS-Goldsprint</title>
+    <link rel="stylesheet" href="stats.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Race Statistics & Highscores</h1>
+            <a href="index.html" class="back-link">← Back to Launcher</a>
+        </header>
+
+        <section class="search-section">
+            <h2>Rider Search</h2>
+            <div class="search-box">
+                <input type="text" id="riderSearchInput" list="search-suggestions" placeholder="Enter rider name...">
+                <datalist id="search-suggestions"></datalist>
+                <button id="searchBtn">Find My Times</button>
+            </div>
+            <div id="searchResults" class="results-list">
+                <!-- Individual stats will appear here -->
+            </div>
+        </section>
+
+        <section class="leaderboard-section">
+            <h2>Highscore Board</h2>
+            
+            <div class="filters">
+                <div class="filter-group">
+                    <span class="filter-label">Category:</span>
+                    <button class="filter-btn active" data-type="category" data-value="All">All</button>
+                    <button class="filter-btn" data-type="category" data-value="OPEN">OPEN</button>
+                    <button class="filter-btn" data-type="category" data-value="WTNB">WTNB</button>
+                </div>
+                
+                <div class="filter-group">
+                    <span class="filter-label">Time:</span>
+                    <button class="filter-btn active" data-type="time" data-value="all">All Time</button>
+                    <button class="filter-btn" data-type="time" data-value="today">Today</button>
+                    <button class="filter-btn" data-type="time" data-value="past 5 days">Past 5 Days</button>
+                    <button class="filter-btn" data-type="time" data-value="this year">This Year</button>
+                </div>
+            </div>
+
+            <table class="highscore-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Rider</th>
+                        <th>Time (s)</th>
+                        <th>Category</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="highscoreBody">
+                    <!-- Leaderboard rows will appear here -->
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <script src="stats.js"></script>
+</body>
+</html>

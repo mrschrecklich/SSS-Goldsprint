@@ -30,9 +30,30 @@ const UI = {
         newParticipantName: document.getElementById('newParticipantName'),
         participantList: document.getElementById('participantList'),
         randomizeBtn: document.getElementById('randomizeBtn'),
-        container: document.getElementById('bracketContainer')
+        container: document.getElementById('bracketContainer'),
+        nameSuggestions: document.getElementById('name-suggestions')
     }
 };
+
+// --- Autocomplete logic ---
+UI.bracket.newParticipantName.addEventListener('input', async (e) => {
+    const query = e.target.value;
+    if (query.length < 2) {
+        UI.bracket.nameSuggestions.innerHTML = '';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}`);
+        const names = await response.json();
+        
+        UI.bracket.nameSuggestions.innerHTML = names
+            .map(name => `<option value="${name}">`)
+            .join('');
+    } catch (err) {
+        console.error("Failed to fetch suggestions:", err);
+    }
+});
 
 let ws;
 let isFirstLoad = true;

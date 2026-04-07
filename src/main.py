@@ -4,14 +4,16 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from src.config import config
 from src.engine import GoldsprintEngine
 from src.bracket import BracketManager
 from src.websocket_manager import manager
 from src.sensor_client import SensorClient
+from src.database import db
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -59,6 +61,28 @@ async def lifespan(app: FastAPI):
     logger.info("Application lifespan ended: sensor client stopped.")
 
 app = FastAPI(lifespan=lifespan, title="Goldsprint SSS Server")
+
+# --- REST API Endpoints ---
+
+@app.get("/api/suggestions")
+async def get_suggestions(q: str = ""):
+    """Returns participant name suggestions for autocomplete."""
+    return db.get_name_suggestions(q)
+
+@app.get("/api/participant/{name}")
+async def get_participant_stats(name: str):
+    """Returns all race times for a specific participant."""
+    stats = db.get_participant_stats(name)
+    if not stats:
+        return JSONResponse(status_code=404, content={"message": "Participant not found"})
+    return stats
+
+@app.get("/api/highscores")
+async def get_highscores(category: str = None, filter: str = "all"):
+    """Returns leaderboard data based on category and time filters."""
+    # Map 'All' from UI to None for DB
+    db_cat = None if category == "All" else category
+    return db.get_highscores(category=db_cat, time_filter=filter)
 
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
@@ -122,10 +146,19 @@ async def websocket_endpoint(websocket: WebSocket):
                     if match_data and "category" in match_data:
                         bracket_manager.active_category = match_data["category"]
                 elif msg_type == "ADVANCE_WINNER":
+                    cat = cmd.get("category")
+                    winner = cmd.get("winner")
+                    time_val = cmd.get("time")
+                    
                     bracket_manager.advance_winner(
-                        cmd.get("category"), cmd.get("match_id"), 
-                        cmd.get("winner"), cmd.get("time")
+                        cat, cmd.get("match_id"), 
+                        winner, time_val
                     )
+                    
+                    # Persist result to database
+                    if winner and time_val:
+                        db.save_race_result(winner, cat, time_val)
+                    
                     # Auto-reset race state when a winner advances
                     if bracket_manager.active_match and bracket_manager.active_match.get("id") == cmd.get("match_id"):
                         bracket_manager.active_match = None

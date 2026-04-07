@@ -72,7 +72,8 @@
 
             <div class="participant-manager">
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input type="text" id="newParticipantName" placeholder="Participant Name" style="flex:1; padding:10px; background:#333; color:white; border:1px solid #555;">
+                    <input type="text" id="newParticipantName" list="name-suggestions" placeholder="Participant Name" style="flex:1; padding:10px; background:#333; color:white; border:1px solid #555;">
+                    <datalist id="name-suggestions"></datalist>
                     <button id="addParticipantBtn" class="btn ready" style="padding:10px 20px;">ADD</button>
                 </div>
                 
