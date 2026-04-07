@@ -30,7 +30,17 @@ bracket_manager = BracketManager()
 def get_full_state() -> Dict[str, Any]:
     """Helper to merge engine and bracket states for broadcasting."""
     state = engine.get_state()
-    state["bracketState"] = bracket_manager.get_state()
+    bracket_state = bracket_manager.get_state()
+    
+    # Enrich bracket state with best times for each participant
+    participants_bests = {}
+    for cat_name, cat_data in bracket_state["categories"].items():
+        for name in cat_data["participants"]:
+            if name not in participants_bests:
+                participants_bests[name] = db.get_rider_best_times(name)
+    
+    bracket_state["participants_bests"] = participants_bests
+    state["bracketState"] = bracket_state
     return state
 
 async def broadcast_state() -> None:
@@ -158,6 +168,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         bracket_manager.active_category = match_data["category"]
                 elif msg_type == "ADVANCE_WINNER":
                     cat = cmd.get("category")
+                    mid = cmd.get("match_id")
                     
                     # We need the current race distance from the engine
                     distance = engine.target_dist
@@ -171,12 +182,12 @@ async def websocket_endpoint(websocket: WebSocket):
                             db.save_race_result(match["p2"], cat, engine.p2["finishTime"], distance)
                     
                     bracket_manager.advance_winner(
-                        cat, cmd.get("match_id"), 
+                        cat, mid, 
                         cmd.get("winner"), cmd.get("time")
                     )
                     
                     # Auto-reset race state when a winner advances
-                    if bracket_manager.active_match and bracket_manager.active_match.get("id") == cmd.get("id"):
+                    if bracket_manager.active_match and bracket_manager.active_match.get("id") == mid:
                         bracket_manager.active_match = None
                         if not bracket_manager.champion:
                             bracket_manager.show_bracket = True

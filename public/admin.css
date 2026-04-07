@@ -270,7 +270,7 @@ input:disabled + .slider {
 }
 
 /* Bracket View Layout */
-#bracket-tab {
+#bracket-tab.active {
     display: flex;
     flex-direction: row;
     gap: 20px;

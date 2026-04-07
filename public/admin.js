@@ -1,5 +1,5 @@
 /**
- * SSS-Goldsprint Admin Controller v1.3
+ * SSS-Goldsprint Admin Controller v1.4
  * Manages race lifecycle, configuration, monitoring, and statistics.
  */
 
@@ -36,21 +36,6 @@ const UI = {
     }
 };
 
-// --- Cache for best times ---
-let riderBestsCache = {};
-
-async function fetchRiderBests(name) {
-    if (riderBestsCache[name]) return riderBestsCache[name];
-    try {
-        const response = await fetch(`/api/rider_bests/${encodeURIComponent(name)}`);
-        const data = await response.json();
-        riderBestsCache[name] = data;
-        return data;
-    } catch (err) {
-        return { today: null, all_time: null };
-    }
-}
-
 // --- Autocomplete logic ---
 UI.bracket.newParticipantName.addEventListener('input', async (e) => {
     const query = e.target.value;
@@ -79,7 +64,8 @@ let activeCategory = 'OPEN';
 window.switchTab = (tabId) => {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+    const btn = document.querySelector(`button[onclick="switchTab('${tabId}')"]`);
+    if (btn) btn.classList.add('active');
     document.getElementById(`${tabId}-tab`).classList.add('active');
 };
 
@@ -166,13 +152,13 @@ function renderState(state) {
         UI.inputs.dist.value = state.targetDist;
         UI.inputs.circ.value = state.circumference;
         UI.inputs.fs.value = state.falseStartThreshold;
-        
-        if (state.bracketState && state.bracketState.active_match) {
-            UI.monitors.p1NameInput.value = state.bracketState.active_match.p1 || 'Player 1';
-            UI.monitors.p2NameInput.value = state.bracketState.active_match.p2 || 'Player 2';
-        }
-        
         isFirstLoad = false;
+    }
+    
+    // Sync active match names if any (continously during setup phase)
+    if (!state.isRacing && state.countdown === null && state.bracketState && state.bracketState.active_match) {
+        UI.monitors.p1NameInput.value = state.bracketState.active_match.p1 || 'Player 1';
+        UI.monitors.p2NameInput.value = state.bracketState.active_match.p2 || 'Player 2';
     }
 
     if (state.bracketState) {
@@ -190,7 +176,7 @@ function renderState(state) {
 }
 
 // --- Bracket UI Logic ---
-async function renderBracketUI(bracketState) {
+function renderBracketUI(bracketState) {
     const catData = bracketState.categories[activeCategory];
     if (!catData) return;
 
@@ -207,16 +193,18 @@ async function renderBracketUI(bracketState) {
     // Render Live Stats Panel
     UI.bracket.statsBody.innerHTML = '';
     const uniqueParticipants = [...new Set(participants)];
-    for (const name of uniqueParticipants) {
-        const bests = await fetchRiderBests(name);
+    const bestsMap = bracketState.participants_bests || {};
+    
+    uniqueParticipants.forEach(name => {
+        const bests = bestsMap[name] || { today: null, all_time: null };
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="rider-name">${name}</td>
-            <td class="time">${bests.today ? bests.today.toFixed(3) + 's' : '-'}</td>
-            <td class="time">${bests.all_time ? bests.all_time.toFixed(3) + 's' : '-'}</td>
+            <td class="time">${bests.today ? parseFloat(bests.today).toFixed(3) + 's' : '-'}</td>
+            <td class="time">${bests.all_time ? parseFloat(bests.all_time).toFixed(3) + 's' : '-'}</td>
         `;
         UI.bracket.statsBody.appendChild(row);
-    }
+    });
 
     // Render Bracket Tree
     UI.bracket.container.innerHTML = '';
@@ -317,7 +305,6 @@ UI.bracket.addParticipantBtn.addEventListener('click', () => {
     if (!exists) {
         sendCommand('ADD_PARTICIPANT', { category: activeCategory, name });
         UI.bracket.newParticipantName.value = '';
-        riderBestsCache = {}; // Clear cache on new participant
     }
 });
 
@@ -396,7 +383,6 @@ UI.ackWinnerBtn.addEventListener('click', () => {
             winner: winnerName,
             time: winnerTime
         });
-        riderBestsCache = {}; // Clear cache so stats update
     } else {
         alert("Race ended in false start or error, cannot advance winner.");
     }
