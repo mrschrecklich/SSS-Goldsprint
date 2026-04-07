@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin - SSS-Goldsprint</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('race')">Race Controls</button>
+        <button class="tab-btn" onclick="switchTab('bracket')">Bracket Management</button>
+    </div>
+
+    <div id="race-tab" class="tab-content active">
+        <div id="status-bar" class="status warning">Connecting...</div>
+
+        <div class="config-panel">
+            <div class="input-group">
+                <label>Distance (m)</label>
+                <input type="number" id="inputDist" value="500">
+            </div>
+            <div class="input-group">
+                <label>Wheel Circ. (m)</label>
+                <input type="number" id="inputCirc" value="2.1" step="0.01">
+            </div>
+            <div class="input-group">
+                <label>False Start RPM</label>
+                <input type="number" id="inputFS" value="20">
+            </div>
+            <button id="applyConfigBtn" class="btn secondary">Apply Config</button>
+        </div>
+
+        <div class="controls-panel">
+            <button id="startBtn" class="btn massive ready">START RACE</button>
+            <button id="stopBtn" class="btn massive stop">STOP</button>
+            <button id="resetBtn" class="btn massive failsafe">FALSE START / RESET</button>
+        </div>
+
+        <div class="monitor-panel">
+            <div class="player-monitor">
+                <h3>Player 1</h3>
+                <div class="stat">RPM: <span id="p1Rpm">0</span></div>
+                <div class="stat">Dist: <span id="p1Dist">0</span>m</div>
+            </div>
+            <div class="player-monitor">
+                <h3>Player 2</h3>
+                <div class="stat">RPM: <span id="p2Rpm">0</span></div>
+                <div class="stat">Dist: <span id="p2Dist">0</span>m</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bracket-tab" class="tab-content">
+        <h2>Bracket Management</h2>
+        <p>Bracket management interface will be implemented here.</p>
+        <p><i>(Placeholder for drag-and-drop or tap-to-advance logic)</i></p>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

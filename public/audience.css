@@ -1,0 +1,218 @@
+:root {
+    --bg-color: #000000;
+    --text-color: #ffffff;
+    --p1-color: #39ff14; /* Neon Green */
+    --p2-color: #00ffff; /* Electric Blue */
+    --win-color: #ff00ff; /* Neon Magenta */
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-mono: 'Roboto Mono', monospace;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.target-dist {
+    position: absolute;
+    top: 2vh;
+    right: 5vw;
+    font-family: var(--font-display);
+    font-size: 3vw;
+    color: #555555;
+}
+
+.track {
+    display: flex;
+    flex-direction: column;
+    gap: 10vh;
+    padding: 0 5vw;
+}
+
+.lane {
+    display: flex;
+    flex-direction: column;
+    gap: 2vh;
+}
+
+.lane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.player-name {
+    font-family: var(--font-display);
+    font-size: 10vw;
+    line-height: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.stats {
+    font-family: var(--font-mono);
+    font-size: 3vw;
+    color: #cccccc;
+    display: flex;
+    gap: 3vw;
+}
+
+.progress-container {
+    width: 100%;
+    height: 12vh;
+    background-color: #111111;
+    border: 4px solid #333333;
+    border-radius: 6vh;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width 0.1s linear;
+    border-radius: 6vh;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.dist-label {
+    font-family: var(--font-mono);
+    font-size: 4vh;
+    color: #000;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.p1-color { background-color: var(--p1-color); box-shadow: 0 0 20px var(--p1-color); }
+.p2-color { background-color: var(--p2-color); box-shadow: 0 0 20px var(--p2-color); }
+
+.progress-bar.intense-glow {
+    box-shadow: 0 0 50px 10px currentColor;
+}
+
+/* Base shake animation */
+@keyframes shake-base {
+    0% { transform: translate(calc(var(--si) * 1px), calc(var(--si) * 1px)) rotate(0deg); }
+    10% { transform: translate(calc(var(--si) * -1px), calc(var(--si) * -2px)) rotate(-1deg); }
+    20% { transform: translate(calc(var(--si) * -3px), 0px) rotate(1deg); }
+    30% { transform: translate(calc(var(--si) * 3px), calc(var(--si) * 2px)) rotate(0deg); }
+    40% { transform: translate(calc(var(--si) * 1px), calc(var(--si) * -1px)) rotate(1deg); }
+    50% { transform: translate(calc(var(--si) * -1px), calc(var(--si) * 2px)) rotate(-1deg); }
+    60% { transform: translate(calc(var(--si) * -3px), calc(var(--si) * 1px)) rotate(0deg); }
+    70% { transform: translate(calc(var(--si) * 3px), calc(var(--si) * 1px)) rotate(-1deg); }
+    80% { transform: translate(calc(var(--si) * -1px), calc(var(--si) * -1px)) rotate(1deg); }
+    90% { transform: translate(calc(var(--si) * 1px), calc(var(--si) * 2px)) rotate(0deg); }
+    100% { transform: translate(calc(var(--si) * 1px), calc(var(--si) * -2px)) rotate(-1deg); }
+}
+
+/* Dynamic Classes for Shaking */
+.shake-sluggish .player-name { --si: 0.5; animation: shake-base 0.8s infinite; }
+.shake-light .player-name { --si: 1; animation: shake-base 0.5s infinite; }
+.shake-medium .player-name { --si: 2; animation: shake-base 0.3s infinite; }
+.shake-heavy .player-name { --si: 4; animation: shake-base 0.15s infinite; }
+.shake-vibrant .player-name { --si: 8; animation: shake-base 0.1s infinite; }
+.shake-extreme .player-name { --si: 15; animation: shake-base 0.05s infinite; }
+.shake-max .player-name { --si: 30; animation: shake-base 0.02s infinite; }
+
+/* Explosion effect for top tier */
+.shake-max .player-name, .shake-extreme .player-name {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px var(--win-color);
+}
+
+/* Countdown Overlay */
+.countdown-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+}
+
+#countdownText {
+    font-family: var(--font-display);
+    font-size: 40vw;
+    color: var(--win-color);
+    text-shadow: 0 0 50px var(--win-color);
+    animation: pulse 1s infinite;
+    text-align: center;
+}
+
+#countdownText.goldsprint-text {
+    font-size: 20vw;
+    color: #ffff00; /* Bright Yellow */
+    text-shadow: 0 0 20px #ffff00, 0 0 50px #ffcc00, 0 0 100px #ffcc00;
+    animation: goldsprint-pulse 0.2s infinite;
+}
+
+@keyframes goldsprint-pulse {
+    0% { transform: scale(1.2) translate(5px, 5px) rotate(2deg); opacity: 1; }
+    50% { transform: scale(1.3) translate(-5px, -5px) rotate(-2deg); opacity: 1; }
+    100% { transform: scale(1.2) translate(5px, 5px) rotate(2deg); opacity: 1; }
+}
+
+/* Win Overlay */
+.win-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 300;
+}
+
+.win-content {
+    width: 80vw;
+    text-align: center;
+}
+
+.win-overlay h1 {
+    font-family: var(--font-display);
+    font-size: 15vw;
+    margin: 0 0 5vh 0;
+    color: var(--win-color);
+    text-shadow: 0 0 40px var(--win-color);
+}
+
+.results-table {
+    display: flex;
+    flex-direction: column;
+    gap: 2vh;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3vh 5vw;
+    font-family: var(--font-display);
+    font-size: 6vw;
+    border-radius: 2vh;
+}
+
+.result-row.gold { background-color: #FFD700; color: #000; }
+.result-row.silver { background-color: #C0C0C0; color: #000; }
+
+.result-row .place { width: 15vw; text-align: left; opacity: 0.7; }
+.result-row .name { flex-grow: 1; text-align: left; }
+.result-row .time { font-family: var(--font-mono); }
+
+.hidden { display: none; }

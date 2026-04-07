@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audience - SSS-Goldsprint</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="audience.css">
+</head>
+<body>
+    <div id="targetDistDisplay" class="target-dist">RACE DISTANCE: <span id="targetDistValue">500</span>M</div>
+
+    <div class="track">
+        <div class="lane" id="lane1">
+            <div class="lane-header">
+                <div class="player-name">PLAYER 1</div>
+                <div class="stats">
+                    <span class="rpm"><span id="p1Rpm">0</span> RPM</span>
+                    <span class="speed"><span id="p1Speed">0.0</span> KM/H</span>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar p1-color" id="p1Progress">
+                    <span class="dist-label" id="p1DistLabel">0M</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="lane" id="lane2">
+            <div class="lane-header">
+                <div class="player-name">PLAYER 2</div>
+                <div class="stats">
+                    <span class="rpm"><span id="p2Rpm">0</span> RPM</span>
+                    <span class="speed"><span id="p2Speed">0.0</span> KM/H</span>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar p2-color" id="p2Progress">
+                    <span class="dist-label" id="p2DistLabel">0M</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="countdownOverlay" class="countdown-overlay hidden">
+        <div id="countdownText">3</div>
+    </div>
+
+    <div id="winOverlay" class="win-overlay hidden">
+        <div class="win-content">
+            <h1 id="winnerText">PLAYER 1 WINS!</h1>
+            <div class="results-table">
+                <div class="result-row gold">
+                    <span class="place">1ST</span>
+                    <span id="winnerName" class="name">PLAYER 1</span>
+                    <span id="winnerTime" class="time">00.00s</span>
+                </div>
+                <div class="result-row silver">
+                    <span class="place">2ND</span>
+                    <span id="secondName" class="name">PLAYER 2</span>
+                    <span id="secondTime" class="time">00.00s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="audience.js"></script>
+</body>
+</html>
