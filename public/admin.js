@@ -1,6 +1,6 @@
 /**
- * SSS-Goldsprint Admin Controller v1.2
- * Manages race lifecycle, configuration, and monitoring.
+ * SSS-Goldsprint Admin Controller v1.3
+ * Manages race lifecycle, configuration, monitoring, and statistics.
  */
 
 const UI = {
@@ -31,9 +31,25 @@ const UI = {
         participantList: document.getElementById('participantList'),
         randomizeBtn: document.getElementById('randomizeBtn'),
         container: document.getElementById('bracketContainer'),
-        nameSuggestions: document.getElementById('name-suggestions')
+        nameSuggestions: document.getElementById('name-suggestions'),
+        statsBody: document.getElementById('bracketStatsBody')
     }
 };
+
+// --- Cache for best times ---
+let riderBestsCache = {};
+
+async function fetchRiderBests(name) {
+    if (riderBestsCache[name]) return riderBestsCache[name];
+    try {
+        const response = await fetch(`/api/rider_bests/${encodeURIComponent(name)}`);
+        const data = await response.json();
+        riderBestsCache[name] = data;
+        return data;
+    } catch (err) {
+        return { today: null, all_time: null };
+    }
+}
 
 // --- Autocomplete logic ---
 UI.bracket.newParticipantName.addEventListener('input', async (e) => {
@@ -68,7 +84,6 @@ window.switchTab = (tabId) => {
 };
 
 window.setActiveCategory = (cat) => {
-    // If there's an active match and we are switching to a DIFFERENT category, ask for confirmation
     if (currentState && currentState.bracketState && currentState.bracketState.active_match) {
         const activeMatchCat = currentState.bracketState.active_match.category;
         if (cat !== activeMatchCat) {
@@ -80,8 +95,6 @@ window.setActiveCategory = (cat) => {
 
     activeCategory = cat;
     sendCommand('SET_ACTIVE_CATEGORY', { category: cat });
-    
-    // UI update will happen via renderState from the server broadcast
 };
 
 function connect() {
@@ -117,7 +130,6 @@ const sendCommand = (type, payload = {}) => {
 
 // --- Render Loop ---
 function renderState(state) {
-    // 1. Handle Status & Race Mode
     const isFinished = state.winner || (state.p1.finishTime && state.p2.finishTime);
     const hasChampion = state.bracketState && state.bracketState.champion;
     
@@ -134,7 +146,6 @@ function renderState(state) {
         UI.ackWinnerBtn.style.display = 'none';
         UI.ackChampBtn.style.display = 'none';
     } else {
-        // Special case: we are in bracket view but champion is shown
         if (hasChampion) {
             updateUIStatus('TOURNAMENT CHAMPION!', 'ready');
             UI.ackChampBtn.style.display = 'block';
@@ -146,19 +157,16 @@ function renderState(state) {
         }
     }
 
-    // 2. Update Monitors
     UI.monitors.p1Rpm.textContent = state.p1.rpm;
     UI.monitors.p2Rpm.textContent = state.p2.rpm;
     UI.monitors.p1Dist.textContent = state.p1.dist.toFixed(1);
     UI.monitors.p2Dist.textContent = state.p2.dist.toFixed(1);
 
-    // 3. Initial Configuration Sync
     if (isFirstLoad) {
         UI.inputs.dist.value = state.targetDist;
         UI.inputs.circ.value = state.circumference;
         UI.inputs.fs.value = state.falseStartThreshold;
         
-        // Sync active match if any
         if (state.bracketState && state.bracketState.active_match) {
             UI.monitors.p1NameInput.value = state.bracketState.active_match.p1 || 'Player 1';
             UI.monitors.p2NameInput.value = state.bracketState.active_match.p2 || 'Player 2';
@@ -167,9 +175,7 @@ function renderState(state) {
         isFirstLoad = false;
     }
 
-    // 4. Update Bracket UI
     if (state.bracketState) {
-        // Sync the admin's activeCategory to the server's authoritative one
         if (state.bracketState.active_category) {
             activeCategory = state.bracketState.active_category;
             document.querySelectorAll('.cat-btn').forEach(btn => {
@@ -184,18 +190,33 @@ function renderState(state) {
 }
 
 // --- Bracket UI Logic ---
-function renderBracketUI(bracketState) {
+async function renderBracketUI(bracketState) {
     const catData = bracketState.categories[activeCategory];
     if (!catData) return;
 
     // Render Participant List
     UI.bracket.participantList.innerHTML = '';
-    catData.participants.forEach(p => {
+    const participants = catData.participants || [];
+    participants.forEach(p => {
         const chip = document.createElement('div');
         chip.className = 'participant-chip';
         chip.innerHTML = `<span>${p}</span> <button onclick="removeParticipant('${p}')">&times;</button>`;
         UI.bracket.participantList.appendChild(chip);
     });
+
+    // Render Live Stats Panel
+    UI.bracket.statsBody.innerHTML = '';
+    const uniqueParticipants = [...new Set(participants)];
+    for (const name of uniqueParticipants) {
+        const bests = await fetchRiderBests(name);
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="rider-name">${name}</td>
+            <td class="time">${bests.today ? bests.today.toFixed(3) + 's' : '-'}</td>
+            <td class="time">${bests.all_time ? bests.all_time.toFixed(3) + 's' : '-'}</td>
+        `;
+        UI.bracket.statsBody.appendChild(row);
+    }
 
     // Render Bracket Tree
     UI.bracket.container.innerHTML = '';
@@ -266,7 +287,6 @@ window.drop = (e, targetMatchId, targetPIdx) => {
     e.currentTarget.classList.remove('drag-over');
     if (!draggedData) return;
     
-    // Send swap command to server
     sendCommand('SWAP_PARTICIPANTS', {
         category: activeCategory,
         match1_id: draggedData.matchId,
@@ -285,7 +305,6 @@ UI.bracket.addParticipantBtn.addEventListener('click', () => {
         return;
     }
     
-    // Client-side quick check
     let exists = false;
     for (const cat in currentState.bracketState.categories) {
         if (currentState.bracketState.categories[cat].participants.includes(name)) {
@@ -298,6 +317,7 @@ UI.bracket.addParticipantBtn.addEventListener('click', () => {
     if (!exists) {
         sendCommand('ADD_PARTICIPANT', { category: activeCategory, name });
         UI.bracket.newParticipantName.value = '';
+        riderBestsCache = {}; // Clear cache on new participant
     }
 });
 
@@ -358,7 +378,6 @@ UI.ackWinnerBtn.addEventListener('click', () => {
         return;
     }
     
-    // Determine winner name and time
     let winnerName = null;
     let winnerTime = null;
     const match = currentState.bracketState.active_match;
@@ -377,6 +396,7 @@ UI.ackWinnerBtn.addEventListener('click', () => {
             winner: winnerName,
             time: winnerTime
         });
+        riderBestsCache = {}; // Clear cache so stats update
     } else {
         alert("Race ended in false start or error, cannot advance winner.");
     }
@@ -387,5 +407,4 @@ UI.ackChampBtn.addEventListener('click', () => {
     switchTab('bracket');
 });
 
-// Initialization
 connect();

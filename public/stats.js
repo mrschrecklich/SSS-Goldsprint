@@ -8,7 +8,8 @@ const UI = {
     searchBtn: document.getElementById('searchBtn'),
     searchResults: document.getElementById('searchResults'),
     highscoreBody: document.getElementById('highscoreBody'),
-    filterBtns: document.querySelectorAll('.filter-btn')
+    filterBtns: document.querySelectorAll('.filter-btn'),
+    distanceSort: document.getElementById('distanceSort')
 };
 
 let currentCategory = 'All';
@@ -16,7 +17,8 @@ let currentTimeFilter = 'all';
 
 async function fetchHighscores() {
     try {
-        const response = await fetch(`/api/highscores?category=${currentCategory}&filter=${currentTimeFilter}`);
+        const dist = UI.distanceSort.value;
+        const response = await fetch(`/api/highscores?category=${currentCategory}&filter=${currentTimeFilter}${dist ? '&distance=' + dist : ''}`);
         const data = await response.json();
         renderHighscores(data);
     } catch (err) {
@@ -27,7 +29,7 @@ async function fetchHighscores() {
 function renderHighscores(data) {
     UI.highscoreBody.innerHTML = '';
     if (data.length === 0) {
-        UI.highscoreBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#aaa;">No results found for this selection.</td></tr>';
+        UI.highscoreBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color:#aaa;">No results found for this selection.</td></tr>';
         return;
     }
 
@@ -38,6 +40,8 @@ function renderHighscores(data) {
             <td>${index + 1}</td>
             <td style="color: #ff9800; font-weight: bold;">${row.name}</td>
             <td style="font-family: monospace; font-size: 1.2rem;">${row.race_time.toFixed(3)}s</td>
+            <td>${row.race_distance}m</td>
+            <td style="color: #2196F3;">${row.avg_speed_kmh.toFixed(1)} km/h</td>
             <td style="font-size: 0.9rem;">${row.category}</td>
             <td style="font-size: 0.8rem; color: #888;">${dateStr}</td>
         `;
@@ -65,14 +69,19 @@ async function searchRider() {
 function renderRiderStats(name, data) {
     UI.searchResults.innerHTML = `
         <div class="rider-card">
-            <h3>${name}</h3>
-            <p>Total Races: ${data.length}</p>
-            <p>Personal Best: <strong>${data[0].race_time.toFixed(3)}s</strong> (${data[0].category})</p>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <h3>${name}</h3>
+                    <p>Total Races: ${data.length}</p>
+                    <p>Personal Best: <strong>${data[0].race_time.toFixed(3)}s</strong> (${data[0].category})</p>
+                </div>
+                <button onclick="deleteRider('${name}')" class="delete-btn">DELETE RIDER</button>
+            </div>
             <div class="rider-history">
                 <h4>Recent Times</h4>
                 ${data.slice(0, 5).map(r => `
                     <div class="history-row">
-                        <span>${r.race_time.toFixed(3)}s</span>
+                        <span>${r.race_time.toFixed(3)}s for ${r.race_distance}m</span>
                         <span style="font-size: 0.8rem; color:#888;">${r.category} - ${new Date(r.race_date).toLocaleDateString()}</span>
                     </div>
                 `).join('')}
@@ -80,6 +89,20 @@ function renderRiderStats(name, data) {
         </div>
     `;
 }
+
+async function deleteRider(name) {
+    if (!confirm(`Permanently delete all records for ${name}? This cannot be undone.`)) return;
+    
+    try {
+        await fetch(`/api/participant/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        UI.searchResults.innerHTML = '';
+        UI.searchBox.value = '';
+        fetchHighscores();
+    } catch (err) {
+        alert("Failed to delete rider.");
+    }
+}
+window.deleteRider = deleteRider;
 
 // Event Listeners
 UI.searchBox.addEventListener('input', async (e) => {
@@ -116,6 +139,8 @@ UI.filterBtns.forEach(btn => {
         fetchHighscores();
     });
 });
+
+UI.distanceSort.addEventListener('change', fetchHighscores);
 
 // Init
 fetchHighscores();

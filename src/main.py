@@ -78,11 +78,22 @@ async def get_participant_stats(name: str):
     return stats
 
 @app.get("/api/highscores")
-async def get_highscores(category: str = None, filter: str = "all"):
-    """Returns leaderboard data based on category and time filters."""
+async def get_highscores(category: str = None, filter: str = "all", distance: float = None):
+    """Returns leaderboard data based on category, time, and distance filters."""
     # Map 'All' from UI to None for DB
     db_cat = None if category == "All" else category
-    return db.get_highscores(category=db_cat, time_filter=filter)
+    return db.get_highscores(category=db_cat, time_filter=filter, distance=distance)
+
+@app.delete("/api/participant/{name}")
+async def delete_participant(name: str):
+    """Deletes a participant and all their data."""
+    db.delete_participant(name)
+    return {"message": f"Deleted {name}"}
+
+@app.get("/api/rider_bests/{name}")
+async def get_rider_bests(name: str):
+    """Returns today's and all-time best times for a rider."""
+    return db.get_rider_best_times(name)
 
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
@@ -147,20 +158,25 @@ async def websocket_endpoint(websocket: WebSocket):
                         bracket_manager.active_category = match_data["category"]
                 elif msg_type == "ADVANCE_WINNER":
                     cat = cmd.get("category")
-                    winner = cmd.get("winner")
-                    time_val = cmd.get("time")
+                    
+                    # We need the current race distance from the engine
+                    distance = engine.target_dist
+                    
+                    # Persist results for BOTH players if they finished
+                    match = bracket_manager.active_match
+                    if match:
+                        if engine.p1["finishTime"]:
+                            db.save_race_result(match["p1"], cat, engine.p1["finishTime"], distance)
+                        if engine.p2["finishTime"]:
+                            db.save_race_result(match["p2"], cat, engine.p2["finishTime"], distance)
                     
                     bracket_manager.advance_winner(
                         cat, cmd.get("match_id"), 
-                        winner, time_val
+                        cmd.get("winner"), cmd.get("time")
                     )
                     
-                    # Persist result to database
-                    if winner and time_val:
-                        db.save_race_result(winner, cat, time_val)
-                    
                     # Auto-reset race state when a winner advances
-                    if bracket_manager.active_match and bracket_manager.active_match.get("id") == cmd.get("match_id"):
+                    if bracket_manager.active_match and bracket_manager.active_match.get("id") == cmd.get("id"):
                         bracket_manager.active_match = None
                         if not bracket_manager.champion:
                             bracket_manager.show_bracket = True

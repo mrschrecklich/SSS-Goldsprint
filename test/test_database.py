@@ -18,25 +18,26 @@ def temp_db():
         os.remove(db_path)
 
 def test_save_and_retrieve_result(temp_db):
-    temp_db.save_race_result("Alice", "OPEN", 25.5)
+    temp_db.save_race_result("Alice", "OPEN", 25.5, 500.0)
     
     # Check participant table
     stats = temp_db.get_participant_stats("Alice")
     assert len(stats) == 1
     assert stats[0]["race_time"] == 25.5
+    assert stats[0]["race_distance"] == 500.0
     assert stats[0]["category"] == "OPEN"
 
 def test_suggestions(temp_db):
-    temp_db.save_race_result("Alice", "OPEN", 25.5)
-    temp_db.save_race_result("Bob", "OPEN", 22.1)
+    temp_db.save_race_result("Alice", "OPEN", 25.5, 500.0)
+    temp_db.save_race_result("Bob", "OPEN", 22.1, 500.0)
     
     suggestions = temp_db.get_name_suggestions("Ali")
     assert "Alice" in suggestions
     assert "Bob" not in suggestions
 
 def test_highscores_filtering(temp_db):
-    temp_db.save_race_result("Alice", "OPEN", 25.5)
-    temp_db.save_race_result("Bob", "WTNB", 22.1)
+    temp_db.save_race_result("Alice", "OPEN", 25.5, 500.0)
+    temp_db.save_race_result("Bob", "WTNB", 22.1, 1000.0)
     
     # Filter by category
     open_scores = temp_db.get_highscores(category="OPEN")
@@ -47,7 +48,13 @@ def test_highscores_filtering(temp_db):
     assert len(wtnb_scores) == 1
     assert wtnb_scores[0]["name"] == "Bob"
     
-    # All scores
+    # Sort by avg speed (Bob is 1000/22.1 = 45.2 m/s, Alice is 500/25.5 = 19.6 m/s)
     all_scores = temp_db.get_highscores()
     assert len(all_scores) == 2
-    assert all_scores[0]["name"] == "Bob" # Bob is faster
+    assert all_scores[0]["name"] == "Bob"
+
+def test_delete_participant(temp_db):
+    temp_db.save_race_result("Alice", "OPEN", 25.5, 500.0)
+    temp_db.delete_participant("Alice")
+    stats = temp_db.get_participant_stats("Alice")
+    assert len(stats) == 0

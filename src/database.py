@@ -47,10 +47,17 @@ class GoldsprintDB:
                     participant_id INTEGER NOT NULL,
                     category TEXT NOT NULL,
                     race_time REAL NOT NULL,
+                    race_distance REAL NOT NULL DEFAULT 500.0,
                     race_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(participant_id) REFERENCES participants(id)
                 )
             """)
+            
+            # Ensure race_distance exists if the table was already there (migration)
+            try:
+                cursor.execute("ALTER TABLE results ADD COLUMN race_distance REAL NOT NULL DEFAULT 500.0")
+            except sqlite3.OperationalError:
+                pass # Already exists
             
             # Indexes for faster querying
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_results_participant ON results(participant_id)")
@@ -60,7 +67,7 @@ class GoldsprintDB:
             conn.commit()
             logger.info("Database initialized successfully.")
 
-    def save_race_result(self, name: str, category: str, race_time: float) -> None:
+    def save_race_result(self, name: str, category: str, race_time: float, distance: float) -> None:
         """
         Saves a race result to the database.
         Automatically adds the participant if they don't exist.
@@ -69,6 +76,7 @@ class GoldsprintDB:
             name (str): The rider's name.
             category (str): Race category (e.g., 'OPEN', 'WTNB').
             race_time (float): The rider's finish time in seconds.
+            distance (float): The race distance in meters.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -82,12 +90,30 @@ class GoldsprintDB:
             
             # Insert result
             cursor.execute(
-                "INSERT INTO results (participant_id, category, race_time) VALUES (?, ?, ?)",
-                (participant_id, category, race_time)
+                "INSERT INTO results (participant_id, category, race_time, race_distance) VALUES (?, ?, ?, ?)",
+                (participant_id, category, race_time, distance)
             )
             
             conn.commit()
-            logger.info(f"Saved result: {name} ({category}) - {race_time:.3f}s")
+            logger.info(f"Saved result: {name} ({category}) - {race_time:.3f}s for {distance}m")
+
+    def delete_participant(self, name: str) -> None:
+        """
+        Deletes a participant and all their associated race results.
+
+        Args:
+            name (str): The rider's name.
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM participants WHERE name = ?", (name,))
+            row = cursor.fetchone()
+            if row:
+                participant_id = row["id"]
+                cursor.execute("DELETE FROM results WHERE participant_id = ?", (participant_id,))
+                cursor.execute("DELETE FROM participants WHERE id = ?", (participant_id,))
+                conn.commit()
+                logger.info(f"Deleted participant and all data for: {name}")
 
     def get_name_suggestions(self, query: str, limit: int = 5) -> List[str]:
         """
@@ -119,12 +145,13 @@ class GoldsprintDB:
             name (str): The rider's name.
 
         Returns:
-            List[Dict[str, Any]]: List of results with time, date, and category.
+            List[Dict[str, Any]]: List of results with time, date, category, and speed.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT r.race_time, r.race_date, r.category
+                SELECT r.race_time, r.race_distance, r.race_date, r.category,
+                (r.race_distance / r.race_time * 3.6) as avg_speed_kmh
                 FROM results r
                 JOIN participants p ON r.participant_id = p.id
                 WHERE p.name = ?
@@ -133,42 +160,85 @@ class GoldsprintDB:
             
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_highscores(self, category: Optional[str] = None, time_filter: str = "all") -> List[Dict[str, Any]]:
+    def get_rider_best_times(self, name: str) -> Dict[str, Optional[float]]:
         """
-        Retrieves the top times based on category and time filters.
+        Returns today's best and all-time best times for a rider.
+
+        Args:
+            name (str): The rider's name.
+
+        Returns:
+            Dict[str, Optional[float]]: {'today': float|None, 'all_time': float|None}
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # All-time
+            cursor.execute("""
+                SELECT MIN(r.race_time) as best
+                FROM results r
+                JOIN participants p ON r.participant_id = p.id
+                WHERE p.name = ?
+            """, (name,))
+            all_time = cursor.fetchone()["best"]
+            
+            # Today
+            cursor.execute("""
+                SELECT MIN(r.race_time) as best
+                FROM results r
+                JOIN participants p ON r.participant_id = p.id
+                WHERE p.name = ? AND r.race_date >= date('now', 'localtime')
+            """, (name,))
+            today = cursor.fetchone()["best"]
+            
+            return {"today": today, "all_time": all_time}
+
+    def get_highscores(self, category: Optional[str] = None, time_filter: str = "all", distance: Optional[float] = None) -> List[Dict[str, Any]]:
+        """
+        Retrieves the top times based on category, time, and distance filters.
 
         Args:
             category (Optional[str]): 'OPEN', 'WTNB', or None for all.
             time_filter (str): 'today', 'past 5 days', 'this year', 'all'.
+            distance (Optional[float]): Filter by specific distance.
 
         Returns:
             List[Dict[str, Any]]: List of highscores.
         """
-        date_condition = ""
+        conditions = ["1=1"]
         params = []
         
         # Build time filter
         if time_filter == "today":
-            date_condition = "AND r.race_date >= date('now', 'localtime')"
+            conditions.append("r.race_date >= date('now', 'localtime')")
         elif time_filter == "past 5 days":
-            date_condition = "AND r.race_date >= date('now', '-5 days', 'localtime')"
+            conditions.append("r.race_date >= date('now', '-5 days', 'localtime')")
         elif time_filter == "this year":
-            date_condition = "AND r.race_date >= date('now', 'start of year', 'localtime')"
+            conditions.append("r.race_date >= date('now', 'start of year', 'localtime')")
             
         # Build category filter
-        category_condition = ""
         if category:
-            category_condition = "AND r.category = ?"
+            conditions.append("r.category = ?")
             params.append(category)
+
+        # Build distance filter
+        if distance:
+            conditions.append("r.race_distance = ?")
+            params.append(distance)
             
         with self._get_connection() as conn:
             cursor = conn.cursor()
+            # If a specific distance is selected, we sort by time.
+            # If no distance is selected, we sort by average speed.
+            order_by = "r.race_time ASC" if distance else "(r.race_distance / r.race_time) DESC"
+            
             query = f"""
-                SELECT p.name, r.race_time, r.race_date, r.category
+                SELECT p.name, r.race_time, r.race_distance, r.race_date, r.category,
+                (r.race_distance / r.race_time * 3.6) as avg_speed_kmh
                 FROM results r
                 JOIN participants p ON r.participant_id = p.id
-                WHERE 1=1 {date_condition} {category_condition}
-                ORDER BY r.race_time ASC
+                WHERE {" AND ".join(conditions)}
+                ORDER BY {order_by}
                 LIMIT 50
             """
             cursor.execute(query, params)

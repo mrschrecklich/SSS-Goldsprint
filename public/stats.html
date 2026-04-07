@@ -21,7 +21,7 @@
                 <button id="searchBtn">Find My Times</button>
             </div>
             <div id="searchResults" class="results-list">
-                <!-- Individual stats will appear here -->
+                <!-- Individual stats will appear here with delete button -->
             </div>
         </section>
 
@@ -43,6 +43,15 @@
                     <button class="filter-btn" data-type="time" data-value="past 5 days">Past 5 Days</button>
                     <button class="filter-btn" data-type="time" data-value="this year">This Year</button>
                 </div>
+
+                <div class="filter-group">
+                    <span class="filter-label">Sort by Dist:</span>
+                    <select id="distanceSort" class="filter-select">
+                        <option value="">Top Average Speed (All Distances)</option>
+                        <option value="500">500 meters</option>
+                        <option value="1000">1000 meters</option>
+                    </select>
+                </div>
             </div>
 
             <table class="highscore-table">
@@ -51,6 +60,8 @@
                         <th>Rank</th>
                         <th>Rider</th>
                         <th>Time (s)</th>
+                        <th>Dist (m)</th>
+                        <th>Avg Speed</th>
                         <th>Category</th>
                         <th>Date</th>
                     </tr>

@@ -163,6 +163,31 @@ section {
     font-weight: bold;
 }
 
+.filter-select {
+    background-color: #333;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.delete-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.delete-btn:hover {
+    background-color: #d32f2f;
+}
+
 .highscore-table {
     width: 100%;
     border-collapse: collapse;
