@@ -6,7 +6,7 @@
     <title>Audience - SSS-Goldsprint</title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="audience.css">
+    <link rel="stylesheet" href="audience.css?v=1.2">
 </head>
 <body>
     <div id="targetDistDisplay" class="target-dist">RACE DISTANCE: <span id="targetDistValue">500</span>M</div>
@@ -65,6 +65,31 @@
         </div>
     </div>
 
-    <script src="audience.js"></script>
+    <div id="bracketOverlay" class="bracket-overlay hidden">
+        <h1 id="bracketCategoryTitle">OPEN BRACKET</h1>
+        <div class="bracket-wrapper">
+            <svg id="bracketSvg" class="bracket-svg"></svg>
+            <div id="audienceBracketContainer" class="audience-bracket-container"></div>
+        </div>
+    </div>
+
+    <div id="championOverlay" class="champion-overlay hidden">
+        <div class="champion-layout">
+            <div class="champion-header">
+                <div class="champion-title">🏆 TOURNAMENT CHAMPION 🏆</div>
+                <div id="championName" class="champion-name">WINNER NAME</div>
+            </div>
+            
+            <div class="leaderboard-section">
+                <h2>FASTEST TIMES (TOP 3)</h2>
+                <div id="leaderboardList" class="leaderboard-list">
+                    <!-- Top times here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="audience.js?v=1.3"></script>
+
 </body>
 </html>

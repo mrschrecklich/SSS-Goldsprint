@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin - SSS-Goldsprint</title>
-    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="admin.css?v=1.2">
 </head>
 <body>
     <div class="tabs">
@@ -35,28 +35,57 @@
             <button id="startBtn" class="btn massive ready">START RACE</button>
             <button id="stopBtn" class="btn massive stop">STOP</button>
             <button id="resetBtn" class="btn massive failsafe">FALSE START / RESET</button>
+            <button id="ackWinnerBtn" class="btn massive" style="display: none; background-color: #2196F3;">ACKNOWLEDGE WINNER</button>
+            <button id="ackChampBtn" class="btn massive" style="display: none; background-color: #9C27B0;">ACKNOWLEDGE CHAMPION</button>
         </div>
 
         <div class="monitor-panel">
             <div class="player-monitor">
                 <h3>Player 1</h3>
+                <input type="text" id="p1NameInput" placeholder="Player 1 Name" style="width:100%; text-align:center; margin-bottom:5px; background:#333; color:#fff; border:none; padding:5px;">
                 <div class="stat">RPM: <span id="p1Rpm">0</span></div>
-                <div class="stat">Dist: <span id="p1Dist">0</span>m</div>
+                <div class="stat">Dist: <span id="p1Dist">0.0</span>m</div>
             </div>
             <div class="player-monitor">
                 <h3>Player 2</h3>
+                <input type="text" id="p2NameInput" placeholder="Player 2 Name" style="width:100%; text-align:center; margin-bottom:5px; background:#333; color:#fff; border:none; padding:5px;">
                 <div class="stat">RPM: <span id="p2Rpm">0</span></div>
-                <div class="stat">Dist: <span id="p2Dist">0</span>m</div>
+                <div class="stat">Dist: <span id="p2Dist">0.0</span>m</div>
             </div>
         </div>
     </div>
 
     <div id="bracket-tab" class="tab-content">
-        <h2>Bracket Management</h2>
-        <p>Bracket management interface will be implemented here.</p>
-        <p><i>(Placeholder for drag-and-drop or tap-to-advance logic)</i></p>
+        <div class="bracket-controls">
+            <div class="toggle-container">
+                <label>Show Bracket on Screen:</label>
+                <label class="switch">
+                    <input type="checkbox" id="showBracketToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="category-selector">
+                <button class="cat-btn active" onclick="setActiveCategory('OPEN')">OPEN</button>
+                <button class="cat-btn" onclick="setActiveCategory('WTNB')">WTNB</button>
+            </div>
+
+            <div class="participant-manager">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="newParticipantName" placeholder="Participant Name" style="flex:1; padding:10px; background:#333; color:white; border:1px solid #555;">
+                    <button id="addParticipantBtn" class="btn ready" style="padding:10px 20px;">ADD</button>
+                </div>
+                
+                <div id="participantList" class="participant-list"></div>
+                <button id="randomizeBtn" class="btn massive warning" style="margin-top: 15px; background-color: #ff9800; font-size: 1.5rem; padding: 15px;">RANDOMIZE BRACKET</button>
+            </div>
+        </div>
+
+        <div id="bracketContainer" class="bracket-container">
+            <!-- Bracket tree will be rendered here via admin.js -->
+        </div>
     </div>
 
-    <script src="admin.js"></script>
+    <script src="admin.js?v=1.2"></script>
 </body>
 </html>
