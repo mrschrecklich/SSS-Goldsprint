@@ -2,3 +2,5 @@ fastapi
 uvicorn
 websockets
 pytest
+pytest-asyncio
+pydantic-settings
