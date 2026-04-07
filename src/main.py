@@ -27,21 +27,34 @@ engine = GoldsprintEngine(
 )
 bracket_manager = BracketManager()
 
+# Cache for best times to avoid DB hits on every sensor tick
+_best_times_cache = {}
+
 def get_full_state() -> Dict[str, Any]:
     """Helper to merge engine and bracket states for broadcasting."""
     state = engine.get_state()
     bracket_state = bracket_manager.get_state()
     
-    # Enrich bracket state with best times for each participant
+    # Use cached best times, only fetch from DB if missing
     participants_bests = {}
     for cat_name, cat_data in bracket_state["categories"].items():
         for name in cat_data["participants"]:
             if name not in participants_bests:
-                participants_bests[name] = db.get_rider_best_times(name)
+                if name not in _best_times_cache:
+                    _best_times_cache[name] = db.get_rider_best_times(name)
+                participants_bests[name] = _best_times_cache[name]
     
     bracket_state["participants_bests"] = participants_bests
     state["bracketState"] = bracket_state
     return state
+
+def invalidate_bests_cache(name: Optional[str] = None):
+    """Clears the best times cache for one or all riders."""
+    global _best_times_cache
+    if name:
+        _best_times_cache.pop(name, None)
+    else:
+        _best_times_cache = {}
 
 async def broadcast_state() -> None:
     """Async helper to broadcast the merged state to all UIs."""
@@ -98,7 +111,15 @@ async def get_highscores(category: str = None, filter: str = "all", distance: fl
 async def delete_participant(name: str):
     """Deletes a participant and all their data."""
     db.delete_participant(name)
+    invalidate_bests_cache(name)
     return {"message": f"Deleted {name}"}
+
+@app.delete("/api/participants/all")
+async def delete_all_participants():
+    """Wipes the entire database history."""
+    db.clear_all_data()
+    invalidate_bests_cache()
+    return {"message": "All data cleared"}
 
 @app.get("/api/rider_bests/{name}")
 async def get_rider_bests(name: str):
@@ -138,11 +159,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 # --- Bracket Control ---
                 elif msg_type == "ADD_PARTICIPANT":
-                    error = bracket_manager.add_participant(cmd.get("category"), cmd.get("name"))
+                    name = cmd.get("name")
+                    error = bracket_manager.add_participant(cmd.get("category"), name)
                     if error:
                         # Send error back to the requester only or broadcast
                         await websocket.send_text(json.dumps({"type": "ERROR", "message": error}))
                         return # Skip the broadcast_state below to avoid redundant updates
+                    invalidate_bests_cache(name)
                 elif msg_type == "REMOVE_PARTICIPANT":
                     bracket_manager.remove_participant(cmd.get("category"), cmd.get("name"))
                 elif msg_type == "RENAME_CATEGORY":
@@ -178,8 +201,10 @@ async def websocket_endpoint(websocket: WebSocket):
                     if match:
                         if engine.p1["finishTime"]:
                             db.save_race_result(match["p1"], cat, engine.p1["finishTime"], distance)
+                            invalidate_bests_cache(match["p1"])
                         if engine.p2["finishTime"]:
                             db.save_race_result(match["p2"], cat, engine.p2["finishTime"], distance)
+                            invalidate_bests_cache(match["p2"])
                     
                     bracket_manager.advance_winner(
                         cat, mid, 

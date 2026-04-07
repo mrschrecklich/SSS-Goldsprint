@@ -60,7 +60,14 @@ function connect() {
     ws.onclose = () => setTimeout(connect, 2000);
 }
 
+let lastFullStateStr = null;
+
 function renderState(state) {
+    // Quick optimization: only re-render if something changed
+    const currentStateStr = JSON.stringify(state);
+    if (currentStateStr === lastFullStateStr) return;
+    lastFullStateStr = currentStateStr;
+
     UI.targetDist.textContent = Math.round(state.targetDist);
 
     const p1Name = state.bracketState?.active_match?.p1 || 'PLAYER 1';

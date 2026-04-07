@@ -115,6 +115,15 @@ class GoldsprintDB:
                 conn.commit()
                 logger.info(f"Deleted participant and all data for: {name}")
 
+    def clear_all_data(self) -> None:
+        """Wipes all participants and results from the database."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM results")
+            cursor.execute("DELETE FROM participants")
+            conn.commit()
+            logger.info("All database data cleared.")
+
     def get_name_suggestions(self, query: str, limit: int = 5) -> List[str]:
         """
         Returns names matching a partial query for autocomplete.

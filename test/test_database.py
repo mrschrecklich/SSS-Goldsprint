@@ -58,3 +58,11 @@ def test_delete_participant(temp_db):
     temp_db.delete_participant("Alice")
     stats = temp_db.get_participant_stats("Alice")
     assert len(stats) == 0
+
+def test_clear_all_data(temp_db):
+    temp_db.save_race_result("Alice", "OPEN", 25.5, 500.0)
+    temp_db.save_race_result("Bob", "WTNB", 22.1, 500.0)
+    temp_db.clear_all_data()
+    
+    assert len(temp_db.get_highscores()) == 0
+    assert len(temp_db.get_name_suggestions("A")) == 0
