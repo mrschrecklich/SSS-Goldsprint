@@ -4,10 +4,9 @@ A high-performance, web-based Goldsprint racing simulation designed for events a
 
 ## 🚀 Tech Stack
 
-- **Backend**: Node.js, Express (Web Server), `ws` (WebSockets), `net` (TCP Ingestion).
+- **Backend**: Python 3.14+, FastAPI (Web Server), `websockets`, `uvicorn`.
 - **Frontend**: Vanilla JavaScript (ES6+), CSS3 (Animations & Flexbox), HTML5.
-- **Sensor Simulation**: Python 3 (Socket programming).
-- **Design Philosophy**: "10-foot UI" for projectors, mobile-first for admin controls.
+- **Testing**: `pytest` for engine logic.
 
 ---
 
@@ -15,8 +14,8 @@ A high-performance, web-based Goldsprint racing simulation designed for events a
 
 The system is split into three core layers:
 
-### 1. The Authoritative Server (`server.js`)
-The Node.js server acts as the master controller. Unlike traditional setups where the frontend calculates distance, this server runs a **Goldsprint Engine** that:
+### 1. The Authoritative Server (`server.py`)
+The FastAPI server acts as the master controller. Unlike traditional setups where the frontend calculates distance, this server runs a **Goldsprint Engine** that:
 - Manages the race state (Ready, Countdown, Racing, Finished).
 - Ingests raw RPM data from sensors via a TCP socket (Port 5000).
 - Calculates speed (km/h) and distance (meters) at 10Hz.
@@ -48,12 +47,10 @@ A Python script that emulates professional riders:
    cd SSS-Goldsprint
    ```
 
-2. **Install Node.js dependencies**:
+2. **Install Python dependencies**:
    ```bash
-   npm install
+   pip install -r requirements.txt
    ```
-
-3. **Ensure Python 3 is installed** (for the mock sensor).
 
 ---
 
@@ -63,7 +60,7 @@ To run a full simulation, follow these steps in order:
 
 1. **Start the Web Server**:
    ```bash
-   node server.js
+   uvicorn server:app --port 3000
    ```
    *The server will start at `http://localhost:3000` and wait for sensor data.*
 
@@ -71,7 +68,7 @@ To run a full simulation, follow these steps in order:
    ```bash
    python mock-sensor.py
    ```
-   *Wait for the terminal to say `Web Server connected`. A 5-second countdown will begin.*
+   *Wait for the terminal to say `Connected to sensor`. A 5-second countdown will begin.*
 
 3. **Open the Interfaces**:
    - Open `http://localhost:3000` in your browser.
@@ -101,5 +98,5 @@ Open `mock-sensor.py` and edit the `=== EASY CONFIGURATION ===` block at the top
 The project includes unit tests for the core engine logic (distance math, win conditions, config parsing).
 
 ```bash
-npm test
+pytest test/test_race.py
 ```
