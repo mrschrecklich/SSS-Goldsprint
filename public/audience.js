@@ -210,14 +210,18 @@ function handleBracket(bracketState) {
         const bestsMap = bracketState.participants_bests || {};
         
         uniqueParticipants.forEach(name => {
-            const bests = bestsMap[name] || { today: null, all_time: null };
+            const bests = bestsMap[name] || { tournament: null, all_time: null };
+            
+            // Only show row if there is at least a tournament best for this specific distance
+            if (!bests.tournament) return;
+
             const row = document.createElement('div');
             row.className = 'stats-row';
             row.innerHTML = `
                 <div class="stats-name">${name}</div>
                 <div class="stats-times">
-                    <span class="time-label">TODAY:</span>
-                    <span class="time-value">${bests.today ? parseFloat(bests.today).toFixed(2) + 's' : '-'}</span>
+                    <span class="time-label">TOURNAMENT:</span>
+                    <span class="time-value">${parseFloat(bests.tournament).toFixed(2)}s</span>
                     <span class="time-label">BEST:</span>
                     <span class="time-value all-time">${bests.all_time ? parseFloat(bests.all_time).toFixed(2) + 's' : '-'}</span>
                 </div>

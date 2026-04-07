@@ -34,15 +34,18 @@ def get_full_state() -> Dict[str, Any]:
     """Helper to merge engine and bracket states for broadcasting."""
     state = engine.get_state()
     bracket_state = bracket_manager.get_state()
+    dist = engine.target_dist
     
     # Use cached best times, only fetch from DB if missing
+    # Cache key includes distance to ensure correct 'tournament best'
     participants_bests = {}
     for cat_name, cat_data in bracket_state["categories"].items():
         for name in cat_data["participants"]:
+            cache_key = (name, dist)
             if name not in participants_bests:
-                if name not in _best_times_cache:
-                    _best_times_cache[name] = db.get_rider_best_times(name)
-                participants_bests[name] = _best_times_cache[name]
+                if cache_key not in _best_times_cache:
+                    _best_times_cache[cache_key] = db.get_rider_best_times(name, distance=dist)
+                participants_bests[name] = _best_times_cache[cache_key]
     
     bracket_state["participants_bests"] = participants_bests
     state["bracketState"] = bracket_state
@@ -52,7 +55,10 @@ def invalidate_bests_cache(name: Optional[str] = None):
     """Clears the best times cache for one or all riders."""
     global _best_times_cache
     if name:
-        _best_times_cache.pop(name, None)
+        # Clear all distance entries for this specific name
+        keys_to_del = [k for k in _best_times_cache if k[0] == name]
+        for k in keys_to_del:
+            _best_times_cache.pop(k, None)
     else:
         _best_times_cache = {}
 
@@ -172,6 +178,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     bracket_manager.rename_category(cmd.get("old_name"), cmd.get("new_name"))
                 elif msg_type == "GENERATE_BRACKET":
                     bracket_manager.generate_bracket(cmd.get("category"))
+                    bracket_manager.show_bracket = True
                 elif msg_type == "MANUAL_ADVANCE":
                     bracket_manager.manual_advance(
                         cmd.get("category"),

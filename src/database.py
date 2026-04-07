@@ -169,20 +169,21 @@ class GoldsprintDB:
             
             return [dict(row) for row in cursor.fetchall()]
 
-    def get_rider_best_times(self, name: str) -> Dict[str, Optional[float]]:
+    def get_rider_best_times(self, name: str, distance: Optional[float] = None) -> Dict[str, Optional[float]]:
         """
-        Returns today's best and all-time best times for a rider.
+        Returns tournament best (for current distance) and all-time best times for a rider.
 
         Args:
             name (str): The rider's name.
+            distance (Optional[float]): The current tournament race distance.
 
         Returns:
-            Dict[str, Optional[float]]: {'today': float|None, 'all_time': float|None}
+            Dict[str, Optional[float]]: {'tournament': float|None, 'all_time': float|None}
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
             
-            # All-time
+            # All-time best (any distance)
             cursor.execute("""
                 SELECT MIN(r.race_time) as best
                 FROM results r
@@ -191,16 +192,18 @@ class GoldsprintDB:
             """, (name,))
             all_time = cursor.fetchone()["best"]
             
-            # Today
-            cursor.execute("""
-                SELECT MIN(r.race_time) as best
-                FROM results r
-                JOIN participants p ON r.participant_id = p.id
-                WHERE p.name = ? AND r.race_date >= date('now', 'localtime')
-            """, (name,))
-            today = cursor.fetchone()["best"]
+            # Tournament best (specific to current distance)
+            tournament_best = None
+            if distance is not None:
+                cursor.execute("""
+                    SELECT MIN(r.race_time) as best
+                    FROM results r
+                    JOIN participants p ON r.participant_id = p.id
+                    WHERE p.name = ? AND r.race_distance = ?
+                """, (name, distance))
+                tournament_best = cursor.fetchone()["best"]
             
-            return {"today": today, "all_time": all_time}
+            return {"tournament": tournament_best, "all_time": all_time}
 
     def get_highscores(self, category: Optional[str] = None, time_filter: str = "all", distance: Optional[float] = None) -> List[Dict[str, Any]]:
         """
