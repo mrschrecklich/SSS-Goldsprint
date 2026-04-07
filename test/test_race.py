@@ -3,9 +3,9 @@ import os
 import pytest
 import time
 
-# Add parent directory to sys.path to import server
+# Add parent directory to sys.path to import src
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from server import GoldsprintEngine
+from src.engine import GoldsprintEngine
 
 def test_race_logic():
     engine = GoldsprintEngine()
