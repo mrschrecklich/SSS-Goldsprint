@@ -257,16 +257,43 @@ window.drop = (e, targetMatchId, targetPIdx) => {
     e.preventDefault();
     e.currentTarget.classList.remove('drag-over');
     if (!draggedData) return;
+
+    const catData = currentState.bracketState.categories[activeCategory];
+    const bracket = catData.bracket;
     
-    // Advancement check: if we drop onto a match different from where we started
-    if (draggedData.matchId !== targetMatchId) {
-        sendCommand('MANUAL_ADVANCE', {
-            category: activeCategory,
-            match_id: draggedData.matchId,
-            winner: draggedData.name
+    let sourceRoundIdx = -1;
+    let targetRoundIdx = -1;
+    let sourceMatch = null;
+    
+    bracket.forEach((round, rIdx) => {
+        round.forEach(m => {
+            if (m.id === draggedData.matchId) { sourceRoundIdx = rIdx; sourceMatch = m; }
+            if (m.id === targetMatchId) { targetRoundIdx = rIdx; }
         });
-    } else {
-        // Swap behavior (within same match or same round logic)
+    });
+
+    // 1. ADVANCE Logic: If target match is the direct successor of source match
+    if (targetMatchId === sourceMatch.next_match_id) {
+        if (confirm(`Manually advance ${draggedData.name} to the next round?`)) {
+            sendCommand('MANUAL_ADVANCE', {
+                category: activeCategory,
+                match_id: draggedData.matchId,
+                winner: draggedData.name
+            });
+        }
+    } 
+    // 2. CHAMPION Logic: If dragging from the final match (declaring winner)
+    else if (sourceRoundIdx === bracket.length - 1 && draggedData.matchId === targetMatchId) {
+        if (confirm(`Confirm ${draggedData.name} as the final TOURNAMENT WINNER?`)) {
+            sendCommand('MANUAL_ADVANCE', {
+                category: activeCategory,
+                match_id: draggedData.matchId,
+                winner: draggedData.name
+            });
+        }
+    }
+    // 3. SWAP Logic: If dropped in the same round (e.g., seeding changes)
+    else if (sourceRoundIdx === targetRoundIdx) {
         sendCommand('SWAP_PARTICIPANTS', {
             category: activeCategory,
             match1_id: draggedData.matchId,
@@ -275,6 +302,7 @@ window.drop = (e, targetMatchId, targetPIdx) => {
             p2_idx: targetPIdx
         });
     }
+    
     draggedData = null;
 };
 
