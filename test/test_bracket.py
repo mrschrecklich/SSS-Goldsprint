@@ -68,3 +68,22 @@ def test_bracket_generation_odd():
     r1_winners = [m["winner"] for m in bracket[0] if m["winner"] is not None]
     assert len(r1_winners) == 1
     assert r1_winners[0] in players # The person who got the BYE
+
+def test_manual_advance():
+    bm = BracketManager()
+    players = ["A", "B"]
+    for p in players:
+        bm.add_participant("OPEN", p)
+    bm.generate_bracket("OPEN")
+    
+    bracket = bm.categories["OPEN"]["bracket"]
+    match_id = bracket[0][0]["id"]
+    
+    # Manually advance A
+    bm.manual_advance("OPEN", match_id, "A")
+    
+    assert bracket[0][0]["winner"] == "A"
+    assert bracket[0][0]["_actual_winner"] is True
+    
+    # In this 2-player case, A should be champion
+    assert bm.champion["name"] == "A"

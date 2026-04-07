@@ -270,6 +270,17 @@ class BracketManager:
                         self.champion = {"name": winner_name, "category": category}
                     return
 
+    def manual_advance(self, category: str, match_id: str, winner_name: str) -> None:
+        """
+        Manually advances a participant without a race.
+
+        Args:
+            category (str): The category name.
+            match_id (str): ID of the match.
+            winner_name (str): Name of the participant to advance.
+        """
+        self.advance_winner(category, match_id, winner_name, winner_time=None)
+
     def clear_champion(self) -> None:
         """Clears the current champion and returns to bracket view."""
         self.champion = None

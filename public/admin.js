@@ -210,8 +210,8 @@ function renderBracketUI(bracketState) {
             matchDiv.innerHTML = `
                 <div style="font-size:0.8rem; color:#888;">Match ${match.id.substring(0,4)}</div>
                 <div class="bracket-slot ${match.winner === match.p1 && match.p1 ? 'winner' : ''}" 
-                     draggable="${rIndex === 0 && match.p1 && match.p1 !== 'BYE'}" 
-                     ondragstart="dragStart(event, '${match.id}', 1)"
+                     draggable="${match.p1 && match.p1 !== 'BYE'}" 
+                     ondragstart="dragStart(event, '${match.id}', 1, '${match.p1}')"
                      ondragover="allowDrop(event)"
                      ondrop="drop(event, '${match.id}', 1)"
                      ondragleave="dragLeave(event)">
@@ -219,8 +219,8 @@ function renderBracketUI(bracketState) {
                     ${match.winner === match.p1 && match.p1 ? '<span>★</span>' : ''}
                 </div>
                 <div class="bracket-slot ${match.winner === match.p2 && match.p2 ? 'winner' : ''}" 
-                     draggable="${rIndex === 0 && match.p2 && match.p2 !== 'BYE'}" 
-                     ondragstart="dragStart(event, '${match.id}', 2)"
+                     draggable="${match.p2 && match.p2 !== 'BYE'}" 
+                     ondragstart="dragStart(event, '${match.id}', 2, '${match.p2}')"
                      ondragover="allowDrop(event)"
                      ondrop="drop(event, '${match.id}', 2)"
                      ondragleave="dragLeave(event)">
@@ -239,8 +239,8 @@ function renderBracketUI(bracketState) {
 // --- Drag and Drop Logic ---
 let draggedData = null;
 
-window.dragStart = (e, matchId, pIdx) => {
-    draggedData = { matchId, pIdx };
+window.dragStart = (e, matchId, pIdx, name) => {
+    draggedData = { matchId, pIdx, name };
     e.dataTransfer.effectAllowed = "move";
 };
 
@@ -258,13 +258,23 @@ window.drop = (e, targetMatchId, targetPIdx) => {
     e.currentTarget.classList.remove('drag-over');
     if (!draggedData) return;
     
-    sendCommand('SWAP_PARTICIPANTS', {
-        category: activeCategory,
-        match1_id: draggedData.matchId,
-        p1_idx: draggedData.pIdx,
-        match2_id: targetMatchId,
-        p2_idx: targetPIdx
-    });
+    // Advancement check: if we drop onto a match different from where we started
+    if (draggedData.matchId !== targetMatchId) {
+        sendCommand('MANUAL_ADVANCE', {
+            category: activeCategory,
+            match_id: draggedData.matchId,
+            winner: draggedData.name
+        });
+    } else {
+        // Swap behavior (within same match or same round logic)
+        sendCommand('SWAP_PARTICIPANTS', {
+            category: activeCategory,
+            match1_id: draggedData.matchId,
+            p1_idx: draggedData.pIdx,
+            match2_id: targetMatchId,
+            p2_idx: targetPIdx
+        });
+    }
     draggedData = null;
 };
 

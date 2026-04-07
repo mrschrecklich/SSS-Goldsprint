@@ -172,6 +172,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     bracket_manager.rename_category(cmd.get("old_name"), cmd.get("new_name"))
                 elif msg_type == "GENERATE_BRACKET":
                     bracket_manager.generate_bracket(cmd.get("category"))
+                elif msg_type == "MANUAL_ADVANCE":
+                    bracket_manager.manual_advance(
+                        cmd.get("category"),
+                        cmd.get("match_id"),
+                        cmd.get("winner")
+                    )
                 elif msg_type == "SWAP_PARTICIPANTS":
                     bracket_manager.swap_participants(
                         cmd.get("category"), cmd.get("match1_id"), cmd.get("p1_idx"),
